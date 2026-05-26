@@ -1,5 +1,5 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
-import { shopApi } from '../services/api';
+import { shopApi, shopNearbyApi } from '../services/api';
 
 export function useShopList(params?: { categoryId?: number; keyword?: string; sort?: string }) {
   return useInfiniteQuery({
@@ -32,5 +32,14 @@ export function useShopDetail(id: number) {
     queryKey: ['shops', id],
     queryFn: () => shopApi.detail(id),
     enabled: !!id,
+  });
+}
+
+export function useNearbyShops(params: { latitude: number; longitude: number; radius?: number; limit?: number } | null) {
+  return useQuery({
+    queryKey: ['shops', 'nearby', params],
+    queryFn: () => shopNearbyApi.list(params!),
+    enabled: !!params,
+    staleTime: 2 * 60 * 1000,
   });
 }

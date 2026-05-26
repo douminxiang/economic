@@ -63,3 +63,29 @@ export const productApi = {
     api.get('/products', { params }),
   detail: (id: number) => api.get(`/products/${id}`),
 };
+
+// Shop Nearby API
+export const shopNearbyApi = {
+  list: (params: { latitude: number; longitude: number; radius?: number; limit?: number }) =>
+    api.get('/shops/nearby', { params }),
+};
+
+// Amap Proxy API
+export const amapApi = {
+  reverseGeocode: (lat: number, lng: number) =>
+    api.get('/amap/reverse-geocode', { params: { lat, lng } }),
+  poiSearch: (keywords: string, location?: string) =>
+    api.get('/amap/poi-search', { params: { keywords, location } }),
+  direction: (origin: string, destination: string, mode: string = 'driving') =>
+    api.get('/amap/direction', { params: { origin, destination, mode } }),
+  geocode: (address: string, city?: string) =>
+    api.get('/amap/geocode', { params: { address, city } }),
+};
+
+// Address API
+export const addressApi = {
+  list: () => api.get('/address'),
+  create: (data: any) => api.post('/address', data),
+  update: (id: number, data: any) => api.put(`/address/${id}`, data),
+  delete: (id: number) => api.delete(`/address/${id}`),
+};
