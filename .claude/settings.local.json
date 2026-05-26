@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx @react-native-community/cli@latest init EconomicMobile --directory mobile --package-name com.economic.mobile --skip-git-init --skip-install)",
+      "Bash(pnpm --filter @economic/mobile android)",
+      "Bash(./gradlew.bat app:installDebug -PreactNativeDevServerPort=8081)",
+      "Bash(taskkill /f /im node.exe)",
+      "Bash(ln -s /e/economic/node_modules/@react-native/codegen /e/economic/apps/mobile/node_modules/@react-native/codegen)",
+      "Bash(node -e \"const z = require\\('E:/economic/apps/mobile/node_modules/zod'\\); console.log\\(typeof z.object, typeof z.string\\)\")",
+      "Bash(mysql -u root -proot -e \"SHOW DATABASES;\")",
+      "Bash(npx prisma *)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //PID 10036 //F)",
+      "Bash(curl -s http://localhost:3000/api/v1/categories)",
+      "Bash(git -C /e/economic status)",
+      "Bash(git -C /e/economic diff --stat)",
+      "Bash(git -C /e/economic log --oneline -5)",
+      "Bash(git -C /e/economic add apps/server/src/modules/category/category.service.ts apps/server/src/modules/category/category.controller.ts apps/server/src/modules/category/category.module.ts apps/server/src/app.module.ts)",
+      "Bash(git -C /e/economic commit -m 'feat: add category module with list endpoint')",
+      "Bash(curl -s \"http://localhost:3000/api/v1/shops?page=1&limit=5\")",
+      "Bash(taskkill //PID 26740 //F)",
+      "Bash(curl -s \"http://localhost:3000/api/v1/shops/recommended\")",
+      "Bash(curl -s \"http://localhost:3000/api/v1/shops/1\")",
+      "Bash(curl -s \"http://localhost:3000/api/v1/products?shopId=1\")",
+      "Bash(TaskStop bc5jo3z09 *)",
+      "Bash(curl -s \"http://localhost:3000/api/v1/products/1\")",
+      "Bash(node -e ' *)",
+      "Bash(curl -s \"http://localhost:3000/api/v1/shops?page=1&limit=3\")",
+      "Bash(curl -s http://localhost:3000/api/v1/shops/92)",
+      "Bash(taskkill //IM node.exe //F)",
+      "Bash(cd /e/economic/apps/mobile && cat pnpm-lock.yaml | head -5 2>/dev/null; echo \"---\"; ls -la ../../android/app/src/main/AndroidManifest.xml 2>/dev/null)",
+      "Read(//e/e/economic/apps/mobile/**)",
+      "Read(//e/android/app/src/main/**)"
+    ]
+  }
+}
