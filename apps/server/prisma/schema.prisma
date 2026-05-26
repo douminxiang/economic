@@ -41,3 +41,71 @@ model Address {
   @@index([userId])
   @@map("addresses")
 }
+
+// ============ 分类 ============
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(50)
+  icon      String?  @db.VarChar(500)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  shops    Shop[]
+  products Product[]
+
+  @@map("categories")
+}
+
+// ============ 商家 ============
+
+model Shop {
+  id            Int      @id @default(autoincrement())
+  name          String   @db.VarChar(100)
+  description   String?  @db.Text
+  address       String   @db.VarChar(200)
+  phone         String?  @db.VarChar(20)
+  images        Json?
+  rating        Decimal  @default(5.0) @db.Decimal(2, 1)
+  monthlySales  Int      @default(0)
+  deliveryFee   Decimal  @default(0) @db.Decimal(10, 2)
+  minOrder      Decimal  @default(0) @db.Decimal(10, 2)
+  latitude      Decimal  @db.Decimal(10, 7)
+  longitude     Decimal  @db.Decimal(10, 7)
+  businessHours String?  @db.VarChar(50)
+  categoryId    Int?
+  status        Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  category  Category?  @relation(fields: [categoryId], references: [id])
+  products  Product[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@map("shops")
+}
+
+// ============ 商品 ============
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  shopId      Int
+  categoryId  Int?
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  price       Decimal  @db.Decimal(10, 2)
+  image       String?  @db.VarChar(500)
+  stock       Int      @default(999)
+  sales       Int      @default(0)
+  status      Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shop      Shop?      @relation(fields: [shopId], references: [id])
+  category  Category?  @relation(fields: [categoryId], references: [id])
+
+  @@index([shopId])
+  @@index([categoryId])
+  @@map("products")
+}
