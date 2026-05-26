@@ -43,3 +43,23 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+// Shop API
+export const shopApi = {
+  list: (params?: { page?: number; limit?: number; categoryId?: number; keyword?: string; sort?: string }) =>
+    api.get('/shops', { params }),
+  recommended: () => api.get('/shops/recommended'),
+  detail: (id: number) => api.get(`/shops/${id}`),
+};
+
+// Category API
+export const categoryApi = {
+  list: () => api.get('/categories'),
+};
+
+// Product API
+export const productApi = {
+  list: (params?: { shopId?: number; categoryId?: number; page?: number; limit?: number }) =>
+    api.get('/products', { params }),
+  detail: (id: number) => api.get(`/products/${id}`),
+};
