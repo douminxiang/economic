@@ -54,8 +54,16 @@ export class ShopService {
     const R = 6371000; // Earth radius in meters
     const toRad = (deg: number) => (deg * Math.PI) / 180;
 
+    // Rough bounding box to reduce in-memory filtering
+    const latDelta = radius / 111000;
+    const lngDelta = radius / (111000 * Math.cos(toRad(latitude)));
+
     const shops = await this.prisma.shop.findMany({
-      where: { status: 1 },
+      where: {
+        status: 1,
+        latitude: { gte: latitude - latDelta, lte: latitude + latDelta },
+        longitude: { gte: longitude - lngDelta, lte: longitude + lngDelta },
+      },
       include: { category: { select: { name: true } } },
     });
 
