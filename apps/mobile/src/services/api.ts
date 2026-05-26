@@ -84,8 +84,8 @@ export const amapApi = {
 
 // Address API
 export const addressApi = {
-  list: () => api.get('/address'),
-  create: (data: any) => api.post('/address', data),
-  update: (id: number, data: any) => api.put(`/address/${id}`, data),
-  delete: (id: number) => api.delete(`/address/${id}`),
+  list: () => api.get('/addresses'),
+  create: (data: any) => api.post('/addresses', data),
+  update: (id: number, data: any) => api.patch(`/addresses/${id}`, data),
+  delete: (id: number) => api.delete(`/addresses/${id}`),
 };
