@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
 
 export const useAuth = () => {
-  const { user, isAuthenticated, isLoading, login, register, logout, loadUser } = useAuthStore();
+  const { user, isAuthenticated, isLoading, login, register, logout, loadUser, updateUser } = useAuthStore();
 
   useEffect(() => {
     if (isAuthenticated && !user) {
@@ -10,5 +10,5 @@ export const useAuth = () => {
     }
   }, [isAuthenticated]);
 
-  return { user, isAuthenticated, isLoading, login, register, logout };
+  return { user, isAuthenticated, isLoading, login, register, logout, updateUser };
 };
