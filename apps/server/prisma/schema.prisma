@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  phone     String   @unique @db.VarChar(20)
+  password  String   @db.VarChar(255)
+  nickname  String?  @db.VarChar(50)
+  avatar    String?  @db.VarChar(500)
+  gender    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  addresses Address[]
+
+  @@map("users")
+}
+
+model Address {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  name      String   @db.VarChar(50)
+  phone     String   @db.VarChar(20)
+  province  String   @db.VarChar(50)
+  city      String   @db.VarChar(50)
+  district  String   @db.VarChar(50)
+  detail    String   @db.VarChar(200)
+  latitude  Decimal  @db.Decimal(10, 7)
+  longitude Decimal  @db.Decimal(10, 7)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("addresses")
+}
