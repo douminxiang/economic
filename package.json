@@ -1,0 +1,11 @@
+{
+  "name": "economic",
+  "private": true,
+  "scripts": {
+    "dev:server": "pnpm --filter @economic/server start:dev",
+    "dev:mobile": "pnpm --filter @economic/mobile android",
+    "build:server": "pnpm --filter @economic/server build",
+    "db:migrate": "pnpm --filter @economic/server prisma:migrate",
+    "db:seed": "pnpm --filter @economic/server prisma:seed"
+  }
+}
