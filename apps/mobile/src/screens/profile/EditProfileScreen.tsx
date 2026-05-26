@@ -1,13 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useAuth } from '../../hooks/useAuth';
 import { Input, Button } from '../../components';
 import { colors, spacing, fontSize, borderRadius } from '../../theme/tokens';
 
-interface FormData {
-  nickname: string;
-}
+const editProfileSchema = z.object({
+  nickname: z.string().min(2, '昵称至少2个字符').max(20, '昵称不超过20个字符'),
+});
+
+type EditProfileFormData = z.infer<typeof editProfileSchema>;
 
 export default function EditProfileScreen({ navigation }: any) {
   const { user, updateUser } = useAuth();
@@ -16,13 +20,14 @@ export default function EditProfileScreen({ navigation }: any) {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormData>({
+  } = useForm<EditProfileFormData>({
+    resolver: zodResolver(editProfileSchema),
     defaultValues: {
       nickname: user?.nickname || '',
     },
   });
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: EditProfileFormData) => {
     try {
       await updateUser({ nickname: data.nickname });
       Alert.alert('成功', '资料已更新', [
@@ -43,7 +48,11 @@ export default function EditProfileScreen({ navigation }: any) {
         <View style={styles.backButton} />
       </View>
 
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView style={styles.scrollContent} contentContainerStyle={styles.content}>
         {/* Avatar Preview */}
         <View style={styles.avatarSection}>
           <View style={styles.avatar}>
@@ -58,11 +67,7 @@ export default function EditProfileScreen({ navigation }: any) {
         <View style={styles.formSection}>
           <Controller
             control={control}
-            rules={{
-              required: '请输入昵称',
-              minLength: { value: 2, message: '昵称至少2个字符' },
-              maxLength: { value: 20, message: '昵称最多20个字符' },
-            }}
+            name="nickname"
             render={({ field: { onChange, onBlur, value } }) => (
               <Input
                 label="昵称"
@@ -73,7 +78,6 @@ export default function EditProfileScreen({ navigation }: any) {
                 error={errors.nickname?.message}
               />
             )}
-            name="nickname"
           />
 
           <Text style={styles.label}>手机号</Text>
@@ -91,6 +95,7 @@ export default function EditProfileScreen({ navigation }: any) {
           style={styles.saveButton}
         />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -123,6 +128,9 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   container: {
+    flex: 1,
+  },
+  scrollContent: {
     flex: 1,
   },
   content: {

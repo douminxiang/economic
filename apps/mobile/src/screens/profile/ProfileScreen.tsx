@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { Card } from '../../components';
-import { colors, spacing, fontSize, borderRadius } from '../../theme/tokens';
+import { colors, spacing, fontSize, borderRadius, shadows } from '../../theme/tokens';
 
 const menuItems = [
   { key: 'address', label: '我的地址', icon: '📍' },
@@ -180,13 +180,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
     alignItems: 'center',
-    ...{
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-      elevation: 2,
-    },
+    ...shadows.sm,
   },
   logoutText: {
     fontSize: fontSize.md,

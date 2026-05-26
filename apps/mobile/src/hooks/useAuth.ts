@@ -8,7 +8,7 @@ export const useAuth = () => {
     if (isAuthenticated && !user) {
       loadUser();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user, loadUser]);
 
   return { user, isAuthenticated, isLoading, login, register, logout, updateUser };
 };
