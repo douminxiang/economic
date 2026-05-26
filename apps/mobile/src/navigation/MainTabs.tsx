@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import HomeScreen from '../screens/HomeScreen';
+import { HomeStack } from './HomeStack';
 import MapScreen from '../screens/MapScreen';
 import OrderScreen from '../screens/OrderScreen';
 import AIScreen from '../screens/AIScreen';
@@ -18,7 +18,7 @@ export const MainTabs = () => (
       headerShown: false,
     }}
   >
-    <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: '首页' }} />
+    <Tab.Screen name="Home" component={HomeStack} options={{ tabBarLabel: '首页' }} />
     <Tab.Screen name="Map" component={MapScreen} options={{ tabBarLabel: '地图' }} />
     <Tab.Screen name="Order" component={OrderScreen} options={{ tabBarLabel: '订单' }} />
     <Tab.Screen name="AI" component={AIScreen} options={{ tabBarLabel: 'AI助手' }} />

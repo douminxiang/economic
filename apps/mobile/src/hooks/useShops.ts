@@ -15,9 +15,14 @@ export function useShopList(params?: { categoryId?: number; keyword?: string; so
 }
 
 export function useRecommendedShops() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['shops', 'recommended'],
-    queryFn: () => shopApi.recommended(),
+    queryFn: ({ pageParam = 1 }) => shopApi.recommended({ page: pageParam, limit: 10 }),
+    getNextPageParam: (lastPage: any) => {
+      const { page, limit, total } = lastPage.data;
+      return page * limit < total ? page + 1 : undefined;
+    },
+    initialPageParam: 1,
     staleTime: 5 * 60 * 1000,
   });
 }
