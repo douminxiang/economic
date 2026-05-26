@@ -7,5 +7,8 @@
     "build:server": "pnpm --filter @economic/server build",
     "db:migrate": "pnpm --filter @economic/server prisma:migrate",
     "db:seed": "pnpm --filter @economic/server prisma:seed"
+  },
+  "dependencies": {
+    "@nestjs/mapped-types": "^2.1.1"
   }
 }
