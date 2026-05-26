@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { MapView, Marker, Polyline, Location } from 'react-native-amap3d';
+import { MapView, Marker, Polyline } from 'react-native-amap3d';
+import { Geolocation } from 'react-native-amap-geolocation';
 import { useDirection } from '../hooks/useAmap';
 import { colors, fontSize } from '../theme/tokens';
 
@@ -16,9 +17,10 @@ export default function RouteScreen({ route, navigation }: any) {
   const [mode, setMode] = useState('driving');
 
   useEffect(() => {
-    Location.getCurrentPosition()
-      .then((pos) => setLocation({ latitude: pos.latitude, longitude: pos.longitude }))
-      .catch(() => setLocation({ latitude: 30.2741, longitude: 120.1551 }));
+    Geolocation.getCurrentPosition(
+      (position) => setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+      () => setLocation({ latitude: 30.2741, longitude: 120.1551 }),
+    );
   }, []);
 
   const origin = location ? `${location.longitude},${location.latitude}` : '';
@@ -49,11 +51,10 @@ export default function RouteScreen({ route, navigation }: any) {
 
       {/* Map */}
       {location && (
-        <MapView style={styles.map} coordinate={location} zoomLevel={13}>
-          <Marker coordinate={location} title="我的位置" />
+        <MapView style={styles.map} initialCameraPosition={{ target: location, zoom: 13 }}>
+          <Marker position={location} />
           <Marker
-            coordinate={{ latitude: shop.latitude, longitude: shop.longitude }}
-            title={shop.name}
+            position={{ latitude: shop.latitude, longitude: shop.longitude }}
           />
           {polylinePoints.length > 0 && (
             <Polyline

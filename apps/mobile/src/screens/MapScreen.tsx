@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { MapView, Marker, Location } from 'react-native-amap3d';
+import { MapView, Marker } from 'react-native-amap3d';
+import { Geolocation } from 'react-native-amap-geolocation';
 import { useNearbyShops } from '../hooks/useShops';
 import { colors, fontSize } from '../theme/tokens';
 
@@ -11,9 +12,10 @@ export default function MapScreen({ navigation }: any) {
   const [selectedShop, setSelectedShop] = useState<any>(null);
 
   useEffect(() => {
-    Location.getCurrentPosition()
-      .then((pos) => setLocation({ latitude: pos.latitude, longitude: pos.longitude }))
-      .catch(() => setLocation({ latitude: 30.2741, longitude: 120.1551 })); // Hangzhou default
+    Geolocation.getCurrentPosition(
+      (position) => setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+      () => setLocation({ latitude: 30.2741, longitude: 120.1551 }), // Hangzhou default
+    );
   }, []);
 
   const { data: nearbyData } = useNearbyShops(
@@ -36,16 +38,13 @@ export default function MapScreen({ navigation }: any) {
       {location && (
         <MapView
           style={styles.map}
-          coordinate={location}
-          zoomLevel={14}
-          showsLocationButton
+          initialCameraPosition={{ target: location, zoom: 14 }}
+          myLocationButtonEnabled
         >
           {shops.map((shop: any) => (
             <Marker
               key={shop.id}
-              coordinate={{ latitude: shop.latitude, longitude: shop.longitude }}
-              title={shop.name}
-              description={`${shop.distance}m · ${shop.categoryName || ''}`}
+              position={{ latitude: shop.latitude, longitude: shop.longitude }}
               onPress={() => setSelectedShop(shop)}
             />
           ))}

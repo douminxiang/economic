@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
 } from 'react-native';
-import { MapView, Marker, Location } from 'react-native-amap3d';
+import { MapView, Marker } from 'react-native-amap3d';
+import { Geolocation } from 'react-native-amap-geolocation';
 import { useReverseGeocode, usePoiSearch } from '../hooks/useAmap';
 import { useCreateAddress, useUpdateAddress } from '../hooks/useAddress';
 import { colors, fontSize } from '../theme/tokens';
@@ -22,9 +23,10 @@ export default function AddressPickerScreen({ route, navigation }: any) {
   const updateMutation = useUpdateAddress();
 
   useEffect(() => {
-    Location.getCurrentPosition()
-      .then((pos) => setLocation({ latitude: pos.latitude, longitude: pos.longitude }))
-      .catch(() => setLocation({ latitude: 30.2741, longitude: 120.1551 }));
+    Geolocation.getCurrentPosition(
+      (position) => setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+      () => setLocation({ latitude: 30.2741, longitude: 120.1551 }),
+    );
   }, []);
 
   const { data: geoData } = useReverseGeocode(location?.latitude ?? null, location?.longitude ?? null);
@@ -43,7 +45,7 @@ export default function AddressPickerScreen({ route, navigation }: any) {
   };
 
   const handleMapPress = (e: any) => {
-    const { latitude, longitude } = e.nativeEvent.coordinate;
+    const { latitude, longitude } = e.nativeEvent;
     setLocation({ latitude, longitude });
   };
 
@@ -94,8 +96,8 @@ export default function AddressPickerScreen({ route, navigation }: any) {
       {/* Map */}
       {location && (
         <TouchableOpacity activeOpacity={1} onPress={handleMapPress}>
-          <MapView style={styles.map} coordinate={location} zoomLevel={15}>
-            <Marker coordinate={location} />
+          <MapView style={styles.map} initialCameraPosition={{ target: location, zoom: 15 }}>
+            <Marker position={location} />
           </MapView>
         </TouchableOpacity>
       )}
