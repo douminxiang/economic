@@ -22,10 +22,19 @@ Phase 2b 为 App 集成高德地图，实现地图浏览、商家标记、路线
 
 ### 2.1 SDK 选型
 
+**前端：**
+
 | SDK | 用途 |
 |-----|------|
 | `react-native-amap3d` | 地图显示、标记、覆盖物、路线绘制 |
 | `@amap/amap-react-native-location` | 定位服务 |
+
+**后端：**
+
+| SDK | 用途 |
+|-----|------|
+| `@nestjs/axios` | NestJS HTTP 客户端模块 |
+| `axios` | 调用高德 Web API（逆地理编码、POI 搜索、路线规划） |
 
 ### 2.2 API Keys
 
