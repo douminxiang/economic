@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV } from 'react-native-mmkv';
 import api from '../services/api';
 import type { User, AuthResponse } from '@economic/shared';
 
-const storage = new MMKV();
+const storage = createMMKV();
 
 interface AuthState {
   user: User | null;
@@ -50,8 +50,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-    storage.delete('accessToken');
-    storage.delete('refreshToken');
+    storage.remove('accessToken');
+    storage.remove('refreshToken');
     set({ user: null, isAuthenticated: false });
   },
 

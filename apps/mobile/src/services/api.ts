@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV } from 'react-native-mmkv';
 
-const storage = new MMKV();
+const storage = createMMKV();
 
 const api = axios.create({
   baseURL: 'http://10.0.2.2:3000/api/v1', // Android 模拟器访问本机
@@ -33,8 +33,8 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${data.data.accessToken}`;
           return api(originalRequest);
         } catch {
-          storage.delete('accessToken');
-          storage.delete('refreshToken');
+          storage.remove('accessToken');
+          storage.remove('refreshToken');
         }
       }
     }

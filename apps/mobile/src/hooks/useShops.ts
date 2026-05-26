@@ -17,7 +17,7 @@ export function useShopList(params?: { categoryId?: number; keyword?: string; so
 export function useRecommendedShops() {
   return useInfiniteQuery({
     queryKey: ['shops', 'recommended'],
-    queryFn: ({ pageParam = 1 }) => shopApi.recommended({ page: pageParam, limit: 10 }),
+    queryFn: () => shopApi.recommended(),
     getNextPageParam: (lastPage: any) => {
       const { page, limit, total } = lastPage.data;
       return page * limit < total ? page + 1 : undefined;

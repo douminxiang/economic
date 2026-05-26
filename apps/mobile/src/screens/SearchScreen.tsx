@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity } from 'react-native';
 import { useShopList } from '../hooks';
 import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV } from 'react-native-mmkv';
 
-const storage = new MMKV();
+const storage = createMMKV();
 const HISTORY_KEY = 'search_history';
 const MAX_HISTORY = 10;
 
@@ -31,7 +31,7 @@ export default function SearchScreen({ navigation }: any) {
 
   const clearHistory = () => {
     setHistory([]);
-    storage.delete(HISTORY_KEY);
+    storage.remove(HISTORY_KEY);
   };
 
   return (
