@@ -1,31 +1,31 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { AmapService } from './amap.service';
+import { ReverseGeocodeDto } from './dto/reverse-geocode.dto';
+import { PoiSearchDto } from './dto/poi-search.dto';
+import { DirectionDto } from './dto/direction.dto';
+import { GeocodeDto } from './dto/geocode.dto';
 
 @Controller('amap')
 export class AmapController {
   constructor(private readonly amapService: AmapService) {}
 
   @Get('reverse-geocode')
-  reverseGeocode(@Query('lat') lat: string, @Query('lng') lng: string) {
-    return this.amapService.reverseGeocode(parseFloat(lat), parseFloat(lng));
+  reverseGeocode(@Query() dto: ReverseGeocodeDto) {
+    return this.amapService.reverseGeocode(dto.lat, dto.lng);
   }
 
   @Get('poi-search')
-  poiSearch(@Query('keywords') keywords: string, @Query('location') location?: string) {
-    return this.amapService.poiSearch(keywords, location);
+  poiSearch(@Query() dto: PoiSearchDto) {
+    return this.amapService.poiSearch(dto.keywords, dto.location);
   }
 
   @Get('direction')
-  direction(
-    @Query('origin') origin: string,
-    @Query('destination') destination: string,
-    @Query('mode') mode?: string,
-  ) {
-    return this.amapService.direction(origin, destination, mode);
+  direction(@Query() dto: DirectionDto) {
+    return this.amapService.direction(dto.origin, dto.destination, dto.mode);
   }
 
   @Get('geocode')
-  geocode(@Query('address') address: string, @Query('city') city?: string) {
-    return this.amapService.geocode(address, city);
+  geocode(@Query() dto: GeocodeDto) {
+    return this.amapService.geocode(dto.address, dto.city);
   }
 }
