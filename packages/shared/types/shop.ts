@@ -57,3 +57,14 @@ export interface QueryShopDto {
   keyword?: string;
   sort?: 'recommended' | 'rating' | 'sales';
 }
+
+export interface QueryNearbyDto {
+  latitude: number;
+  longitude: number;
+  radius?: number;
+  limit?: number;
+}
+
+export interface ShopNearbyItem extends ShopListItem {
+  distance: number;
+}
