@@ -89,3 +89,36 @@ export const addressApi = {
   update: (id: number, data: any) => api.patch(`/addresses/${id}`, data),
   delete: (id: number) => api.delete(`/addresses/${id}`),
 };
+
+// ============ 购物车 ============
+export const cartApi = {
+  get: () => api.get('/cart'),
+  addItem: (data: { productId: number; quantity: number }) => api.post('/cart/items', data),
+  updateItem: (id: number, quantity: number) => api.patch(`/cart/items/${id}`, { quantity }),
+  removeItem: (id: number) => api.delete(`/cart/items/${id}`),
+  clear: () => api.delete('/cart/clear'),
+};
+
+// ============ 订单 ============
+export const orderApi = {
+  create: (data: { addressId: number; remark?: string }) => api.post('/orders', data),
+  list: (params?: { status?: number; page?: number; limit?: number }) => api.get('/orders', { params }),
+  detail: (id: number) => api.get(`/orders/${id}`),
+  pay: (id: number, payMethod = '微信支付') => api.patch(`/orders/${id}/pay`, { payMethod }),
+  cancel: (id: number) => api.patch(`/orders/${id}/cancel`),
+  confirm: (id: number) => api.patch(`/orders/${id}/confirm`),
+};
+
+// ============ 评价 ============
+export const reviewApi = {
+  submit: (data: any) => api.post('/reviews', data),
+  shopReviews: (shopId: number, params?: { page?: number; limit?: number }) =>
+    api.get(`/reviews/shop/${shopId}`, { params }),
+};
+
+// ============ 收藏 ============
+export const favoriteApi = {
+  toggle: (shopId: number) => api.post(`/favorites/${shopId}`),
+  list: () => api.get('/favorites'),
+  check: (shopId: number) => api.get(`/favorites/check/${shopId}`),
+};
