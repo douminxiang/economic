@@ -2,19 +2,78 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import { useCategories, useRecommendedShops } from '../hooks';
 import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { Skeleton } from '../components/Skeleton';
+import { ErrorView } from '../components/ErrorView';
+
+const HomeSkeleton = () => (
+  <>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <View key={i} style={styles.categorySkeletonItem}>
+          <Skeleton width={48} height={48} borderRadius={24} />
+          <Skeleton width={40} height={12} borderRadius={6} />
+        </View>
+      ))}
+    </ScrollView>
+    <Text style={styles.sectionTitle}>推荐商家</Text>
+    {[1, 2, 3, 4, 5].map((i) => (
+      <View key={i} style={styles.shopCard}>
+        <Skeleton width={64} height={64} borderRadius={borderRadius.md} />
+        <View style={styles.shopInfo}>
+          <Skeleton width="70%" height={16} borderRadius={4} />
+          <View style={{ marginTop: 8 }}>
+            <Skeleton width="50%" height={12} borderRadius={4} />
+          </View>
+          <View style={{ marginTop: 4 }}>
+            <Skeleton width="60%" height={12} borderRadius={4} />
+          </View>
+        </View>
+      </View>
+    ))}
+  </>
+);
 
 export default function HomeScreen({ navigation }: any) {
-  const { data: categories, isLoading: catsLoading } = useCategories();
-  const { data: shopsData, fetchNextPage, hasNextPage, isFetchingNextPage, refetch, isRefetching } = useRecommendedShops();
+  const { data: categories, isLoading: catsLoading, isError: catsError, error: catsErrorObj, refetch: refetchCats } = useCategories();
+  const { data: shopsData, fetchNextPage, hasNextPage, isFetchingNextPage, refetch, isRefetching, isError: shopsError, error: shopsErrorObj, isLoading: shopsLoading } = useRecommendedShops();
   const shops = shopsData?.pages?.flatMap((page: any) => page.data?.items || []) || [];
+
+  const isLoading = catsLoading && shops.length === 0;
+  const hasError = catsError || shopsError;
+  const errorMessage = (catsErrorObj as any)?.message || (shopsErrorObj as any)?.message || '网络连接失败';
+
+  const handleRetry = () => {
+    refetchCats();
+    refetch();
+  };
 
   const loadMore = () => {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
   };
 
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.searchBar}>
+          <Text style={styles.searchPlaceholder}>🔍 搜索商家或美食</Text>
+        </TouchableOpacity>
+        <ScrollView>
+          <HomeSkeleton />
+        </ScrollView>
+      </View>
+    );
+  }
+
+  if (hasError && shops.length === 0) {
+    return (
+      <View style={styles.container}>
+        <ErrorView message={errorMessage} onRetry={handleRetry} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
       <TouchableOpacity style={styles.searchBar} onPress={() => navigation.navigate('Search')}>
         <Text style={styles.searchPlaceholder}>🔍 搜索商家或美食</Text>
       </TouchableOpacity>
@@ -37,7 +96,6 @@ export default function HomeScreen({ navigation }: any) {
         )}
         ListHeaderComponent={() => (
           <>
-            {/* Categories */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
               {(categories?.data || []).map((cat: any) => (
                 <TouchableOpacity key={cat.id} style={styles.categoryItem} onPress={() => navigation.navigate('Category', { categoryId: cat.id })}>
@@ -49,7 +107,7 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.sectionTitle}>推荐商家</Text>
           </>
         )}
-        ListEmptyComponent={!catsLoading ? <Text style={styles.empty}>暂无商家</Text> : null}
+        ListEmptyComponent={<Text style={styles.empty}>暂无商家</Text>}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
@@ -67,6 +125,7 @@ const styles = StyleSheet.create({
   categoryItem: { alignItems: 'center', marginRight: spacing.lg, marginTop: spacing.sm },
   categoryIcon: { fontSize: 32 },
   categoryName: { fontSize: fontSize.xs, color: colors.text, marginTop: spacing.xs },
+  categorySkeletonItem: { alignItems: 'center', marginRight: spacing.lg, marginTop: spacing.sm, gap: 6 },
   sectionTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text, margin: spacing.md },
   shopCard: { flexDirection: 'row', backgroundColor: colors.surface, marginHorizontal: spacing.md, marginBottom: spacing.sm, padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', ...shadows.sm },
   shopImage: { width: 64, height: 64, borderRadius: borderRadius.md, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
