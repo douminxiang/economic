@@ -30,7 +30,30 @@
       "Bash(taskkill //IM node.exe //F)",
       "Bash(cd /e/economic/apps/mobile && cat pnpm-lock.yaml | head -5 2>/dev/null; echo \"---\"; ls -la ../../android/app/src/main/AndroidManifest.xml 2>/dev/null)",
       "Read(//e/e/economic/apps/mobile/**)",
-      "Read(//e/android/app/src/main/**)"
+      "Read(//e/android/app/src/main/**)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(npx nest *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:3000/api/v1/health)",
+      "Bash(curl -s http://localhost:8081/status)",
+      "Bash(npx react-native *)",
+      "Bash(./gradlew.bat app:installDebug)",
+      "Bash(./gradlew.bat :app:dependencies --configuration debugRuntimeClasspath)",
+      "Bash(adb devices *)",
+      "Bash(adb shell *)",
+      "Bash(taskkill //F //PID 32744)",
+      "Bash(pnpm install *)",
+      "Bash(cmd //c \"mklink /D runtime E:\\\\\\\\economic\\\\\\\\node_modules\\\\\\\\@babel\\\\\\\\runtime\")",
+      "Bash(taskkill //F //PID 29792)",
+      "Bash(taskkill //F //PID 34048)",
+      "Bash(pnpm add *)",
+      "Bash(curl -s -X POST http://localhost:3000/api/v1/auth/register -H \"Content-Type: application/json\" -d '{\"phone\":\"13800138000\",\"password\":\"123456\",\"nickname\":\"测试用户\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/v1/auth/login -H \"Content-Type: application/json\" -d '{\"phone\":\"13800138000\",\"password\":\"123456\"}')",
+      "Bash(curl -s http://localhost:3000/api/v1/products)",
+      "Bash(curl -s -X POST http://localhost:3000/api/v1/cart/items -H 'Content-Type: application/json' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjgsInBob25lIjoiMTM4MDAxMzgwMDAiLCJpYXQiOjE3Nzk4NjM2MTUsImV4cCI6MTc3OTg2NDUxNX0.otChnjmBemmnAuzJubPmVqVNLI6xAH54T91F9zO5rVo' -d '{\"productId\":438,\"quantity\":1}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/v1/cart/items -H 'Content-Type: application/json' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjgsInBob25lIjoiMTM4MDAxMzgwMDAiLCJpYXQiOjE3Nzk4NjM2MTUsImV4cCI6MTc3OTg2NDUxNX0.otChnjmBemmnAuzJubPmVqVNLI6xAH54T91F9zO5rVo' -d '{\"productId\":443,\"quantity\":2}')"
     ]
   }
 }
