@@ -1,22 +1,70 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useShopDetail } from '../hooks';
-import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { colors, spacing, fontSize, borderRadius } from '../theme/tokens';
+import { Skeleton } from '../components/Skeleton';
+import { ErrorView } from '../components/ErrorView';
+
+const ShopDetailSkeleton = () => (
+  <View style={styles.container}>
+    <View style={styles.headerImage}>
+      <TouchableOpacity style={styles.backBtn}>
+        <Text style={styles.backText}>←</Text>
+      </TouchableOpacity>
+    </View>
+    <View style={styles.infoCard}>
+      <View style={styles.nameRow}>
+        <Skeleton width={160} height={22} />
+        <Skeleton width={60} height={22} borderRadius={borderRadius.sm} />
+      </View>
+      <Skeleton width="80%" height={14} />
+      <Skeleton width="60%" height={14} />
+      <Skeleton width="50%" height={14} />
+    </View>
+    <View style={styles.tabs}>
+      <Skeleton width="33%" height={40} />
+      <Skeleton width="33%" height={40} />
+      <Skeleton width="33%" height={40} />
+    </View>
+    {[1, 2, 3, 4].map((i) => (
+      <View key={i} style={styles.productRow}>
+        <Skeleton width={72} height={72} borderRadius={borderRadius.sm} />
+        <View style={styles.productInfo}>
+          <Skeleton width="70%" height={16} />
+          <Skeleton width="40%" height={12} />
+        </View>
+        <Skeleton width={40} height={20} />
+      </View>
+    ))}
+  </View>
+);
 
 export default function ShopDetailScreen({ navigation, route }: any) {
   const { id } = route.params;
-  const { data, isLoading } = useShopDetail(id);
+  const { data, isLoading, refetch, isRefetching } = useShopDetail(id);
   const [activeTab, setActiveTab] = useState<'menu' | 'reviews' | 'info'>('menu');
+  const [error, setError] = useState<string | null>(null);
   const shop = data?.data;
 
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <ErrorView message={error} onRetry={() => { setError(null); refetch(); }} />
+      </View>
+    );
+  }
+
   if (isLoading || !shop) {
-    return <View style={styles.loading}><Text>加载中...</Text></View>;
+    return <ShopDetailSkeleton />;
   }
 
   return (
     <View style={styles.container}>
-      <ScrollView>
-        {/* Header Image */}
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />
+        }
+      >
         <View style={styles.headerImage}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <Text style={styles.backText}>←</Text>
@@ -24,7 +72,6 @@ export default function ShopDetailScreen({ navigation, route }: any) {
           <Text style={styles.headerPlaceholder}>商家图片</Text>
         </View>
 
-        {/* Shop Info */}
         <View style={styles.infoCard}>
           <View style={styles.nameRow}>
             <Text style={styles.shopName}>{shop.name}</Text>
@@ -37,7 +84,6 @@ export default function ShopDetailScreen({ navigation, route }: any) {
           <Text style={styles.meta}>📍 {shop.businessHours || '09:00-22:00'}</Text>
         </View>
 
-        {/* Tabs */}
         <View style={styles.tabs}>
           {(['menu', 'reviews', 'info'] as const).map((tab) => (
             <TouchableOpacity key={tab} style={[styles.tab, activeTab === tab && styles.tabActive]} onPress={() => setActiveTab(tab)}>
@@ -48,7 +94,6 @@ export default function ShopDetailScreen({ navigation, route }: any) {
           ))}
         </View>
 
-        {/* Tab Content */}
         {activeTab === 'menu' && shop.products?.map((group: any) => (
           <View key={group.categoryName}>
             <Text style={styles.menuCategory}>{group.categoryName}</Text>
@@ -78,7 +123,6 @@ export default function ShopDetailScreen({ navigation, route }: any) {
         )}
       </ScrollView>
 
-      {/* Bottom Bar */}
       <View style={styles.bottomBar}>
         <View style={styles.cartIcon}>
           <Text style={styles.cartIconText}>🛒</Text>
@@ -97,12 +141,11 @@ export default function ShopDetailScreen({ navigation, route }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerImage: { height: 200, backgroundColor: '#444', justifyContent: 'center', alignItems: 'center' },
   headerPlaceholder: { color: '#FFFFFF99', fontSize: fontSize.md },
   backBtn: { position: 'absolute', top: 50, left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: '#00000066', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
   backText: { color: '#FFF', fontSize: fontSize.lg },
-  infoCard: { backgroundColor: colors.surface, padding: spacing.lg, borderRadius: borderRadius.lg },
+  infoCard: { backgroundColor: colors.surface, padding: spacing.lg, borderRadius: borderRadius.lg, gap: spacing.xs },
   nameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   shopName: { fontSize: fontSize.xl, fontWeight: '700', color: colors.text },
   ratingBadge: { backgroundColor: colors.primary, paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.sm },
@@ -114,12 +157,12 @@ const styles = StyleSheet.create({
   tabText: { fontSize: fontSize.md, color: colors.textSecondary },
   tabTextActive: { color: colors.primary, fontWeight: '600' },
   menuCategory: { fontSize: fontSize.md, fontWeight: '600', color: colors.text, padding: spacing.md, backgroundColor: colors.background },
-  productRow: { flexDirection: 'row', backgroundColor: colors.surface, padding: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, alignItems: 'center' },
+  productRow: { flexDirection: 'row', backgroundColor: colors.surface, padding: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, alignItems: 'center', gap: spacing.md },
   productImage: { width: 72, height: 72, borderRadius: borderRadius.sm, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center' },
   productImgText: { fontSize: fontSize.lg, color: colors.textSecondary },
-  productInfo: { flex: 1, marginLeft: spacing.md },
+  productInfo: { flex: 1, gap: spacing.xs },
   productName: { fontSize: fontSize.md, fontWeight: '500', color: colors.text },
-  productMeta: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs },
+  productMeta: { fontSize: fontSize.xs, color: colors.textSecondary },
   productPrice: { fontSize: fontSize.lg, fontWeight: '700', color: colors.primary },
   emptyTab: { textAlign: 'center', color: colors.textSecondary, padding: spacing.xl },
   infoSection: { padding: spacing.lg, backgroundColor: colors.surface },
