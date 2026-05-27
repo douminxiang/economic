@@ -132,6 +132,13 @@ export const aiApi = {
   messages: (conversationId: number) => api.get(`/ai/conversation/${conversationId}`),
 };
 
+// ============ 浏览历史 ============
+export const browseHistoryApi = {
+  record: (shopId: number) => api.post('/browse-history/record', { shopId }),
+  list: (group: string) => api.get('/browse-history', { params: { group } }),
+  clear: () => api.delete('/browse-history'),
+};
+
 // SSE Stream Helper
 export const createChatStream = async (
   message: string,
