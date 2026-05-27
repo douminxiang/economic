@@ -20,7 +20,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({ width = '100%', height = 20,
     ).start();
   }, []);
 
-  return <Animated.View style={[{ width, height, borderRadius: br, backgroundColor: colors.border }, { opacity }]} />;
+  return <Animated.View style={[{ width: width as any, height, borderRadius: br, backgroundColor: colors.border }, { opacity }]} />;
 };
 
 export const ShopCardSkeleton = () => (

@@ -157,8 +157,8 @@ export const createChatStream = async (
     body: JSON.stringify({ message, conversationId }),
   });
 
-  const reader = response.body?.getReader();
-  const decoder = new TextDecoder();
+  const reader = (response as any).body?.getReader();
+  const decoder = new (globalThis as any).TextDecoder();
 
   if (!reader) {
     onError('Failed to create stream');

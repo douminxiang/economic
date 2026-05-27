@@ -3,14 +3,17 @@ declare module 'supercluster' {
   export default Supercluster;
 }
 
-// react-native-amap3d internal type issues (ships .tsx source, not .d.ts)
-// These are safe to suppress — the library works correctly at runtime
-declare module 'react-native-amap3d/lib/src/cluster/index' {
-  const Cluster: any;
-  export default Cluster;
+// react-native-amap3d ships .tsx source instead of compiled .d.ts, causing type errors
+// The library works correctly at runtime; these suppress type-checking for its internals
+declare module 'react-native-amap3d' {
+  export const MapView: any;
+  export const Marker: any;
+  export const Polyline: any;
+  export const Polygon: any;
+  export const Circle: any;
 }
 
-declare module 'react-native-amap3d/lib/src/map-view' {
-  const MapView: any;
-  export default MapView;
+declare module 'react-native-amap3d/*' {
+  const content: any;
+  export default content;
 }

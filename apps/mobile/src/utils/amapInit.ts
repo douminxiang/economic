@@ -7,7 +7,7 @@ let initialized = false;
 export async function initAmapGeolocation() {
   if (initialized) return;
   try {
-    await init(AMAP_ANDROID_KEY);
+    await init(AMAP_ANDROID_KEY as any);
     initialized = true;
   } catch (e) {
     console.warn('Amap geolocation init failed:', e);
