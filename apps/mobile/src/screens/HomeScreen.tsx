@@ -4,6 +4,7 @@ import { useCategories, useRecommendedShops } from '../hooks';
 import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
 import { Skeleton } from '../components/Skeleton';
 import { ErrorView } from '../components/ErrorView';
+import { EmptyView } from '../components';
 
 const HomeSkeleton = () => (
   <>
@@ -107,7 +108,7 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.sectionTitle}>推荐商家</Text>
           </>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>暂无商家</Text>}
+        ListEmptyComponent={<EmptyView message="暂无商家" />}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
@@ -134,6 +135,5 @@ const styles = StyleSheet.create({
   shopName: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
   shopMeta: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
   shopRating: { fontSize: fontSize.sm, color: colors.warning, fontWeight: '600' },
-  empty: { textAlign: 'center', color: colors.textSecondary, marginTop: spacing.xl },
   listContent: { paddingBottom: spacing.xl },
 });

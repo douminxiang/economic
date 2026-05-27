@@ -13,7 +13,9 @@ export default function HistoryScreen() {
     try {
       const res = await browseHistoryApi.list(activeTab);
       setItems(res.data || []);
-    } catch {}
+    } catch {
+      Alert.alert('错误', '加载浏览历史失败，请重试');
+    }
   }, [activeTab]);
 
   useEffect(() => { loadHistory(); }, [loadHistory]);

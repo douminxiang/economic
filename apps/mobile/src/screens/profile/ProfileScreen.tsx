@@ -22,8 +22,12 @@ export default function ProfileScreen({ navigation }: any) {
   };
 
   const handleMenuPress = (key: string) => {
-    // Placeholder: navigate to sub-pages when they exist
-    Alert.alert('提示', '功能开发中');
+    switch (key) {
+      case 'address': navigation.navigate('Address'); break;
+      case 'favorites': navigation.navigate('Favorite'); break;
+      case 'history': navigation.navigate('History'); break;
+      case 'settings': Alert.alert('提示', '功能开发中'); break;
+    }
   };
 
   return (
@@ -116,7 +120,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: fontSize.xl,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: colors.white,
   },
   userDetails: {
     flex: 1,

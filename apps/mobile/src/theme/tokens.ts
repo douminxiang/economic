@@ -13,6 +13,9 @@ export const colors = {
   warning: '#FF9800',
   white: '#FFFFFF',
   overlay: 'rgba(0,0,0,0.5)',
+  star: '#FFC107',
+  overlayDark: '#00000066',
+  headerDark: '#444444',
 };
 
 export const spacing = {

@@ -4,7 +4,8 @@ import {
 } from 'react-native';
 import { MapView, Marker } from 'react-native-amap3d';
 import { Geolocation } from 'react-native-amap-geolocation';
-import { useReverseGeocode, usePoiSearch } from '../hooks/useAmap';
+import { useReverseGeocode } from '../hooks/useAmap';
+import { amapApi } from '../services/api';
 import { useCreateAddress, useUpdateAddress } from '../hooks/useAddress';
 import { colors, fontSize } from '../theme/tokens';
 
@@ -40,8 +41,11 @@ export default function AddressPickerScreen({ route, navigation }: any) {
   const handleSearch = async () => {
     if (!searchText.trim()) return;
     try {
-      const res = await usePoiSearch(searchText);
-    } catch {}
+      const res = await amapApi.poiSearch(searchText);
+      setPoiResults(res?.data?.pois || []);
+    } catch {
+      setPoiResults([]);
+    }
   };
 
   const handleMapPress = (e: any) => {

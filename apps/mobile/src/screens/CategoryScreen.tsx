@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useCategories, useShopList } from '../hooks';
 import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { EmptyView } from '../components';
 
 export default function CategoryScreen({ navigation, route }: any) {
   const initialCatId = route?.params?.categoryId;
@@ -44,7 +45,7 @@ export default function CategoryScreen({ navigation, route }: any) {
               </View>
             </TouchableOpacity>
           )}
-          ListEmptyComponent={<Text style={styles.empty}>暂无商家</Text>}
+          ListEmptyComponent={<EmptyView message="暂无商家" />}
           onEndReached={() => hasNextPage && !isFetchingNextPage && fetchNextPage()}
           onEndReachedThreshold={0.3}
         />
@@ -68,5 +69,4 @@ const styles = StyleSheet.create({
   shopInfo: { flex: 1, marginLeft: spacing.md, justifyContent: 'center' },
   shopName: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
   shopMeta: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-  empty: { textAlign: 'center', color: colors.textSecondary, marginTop: spacing.xl },
 });

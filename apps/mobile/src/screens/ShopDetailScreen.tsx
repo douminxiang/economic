@@ -4,14 +4,11 @@ import { useShopDetail } from '../hooks';
 import { colors, spacing, fontSize, borderRadius } from '../theme/tokens';
 import { Skeleton } from '../components/Skeleton';
 import { ErrorView } from '../components/ErrorView';
+import { EmptyView } from '../components';
 
 const ShopDetailSkeleton = () => (
   <View style={styles.container}>
-    <View style={styles.headerImage}>
-      <TouchableOpacity style={styles.backBtn}>
-        <Text style={styles.backText}>←</Text>
-      </TouchableOpacity>
-    </View>
+    <View style={styles.headerImage} />
     <View style={styles.infoCard}>
       <View style={styles.nameRow}>
         <Skeleton width={160} height={22} />
@@ -110,7 +107,7 @@ export default function ShopDetailScreen({ navigation, route }: any) {
           </View>
         ))}
 
-        {activeTab === 'reviews' && <Text style={styles.emptyTab}>暂无评价</Text>}
+        {activeTab === 'reviews' && <EmptyView message="暂无评价" />}
         {activeTab === 'info' && (
           <View style={styles.infoSection}>
             <Text style={styles.infoLabel}>商家名称</Text>
@@ -141,15 +138,15 @@ export default function ShopDetailScreen({ navigation, route }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  headerImage: { height: 200, backgroundColor: '#444', justifyContent: 'center', alignItems: 'center' },
+  headerImage: { height: 200, backgroundColor: colors.headerDark, justifyContent: 'center', alignItems: 'center' },
   headerPlaceholder: { color: '#FFFFFF99', fontSize: fontSize.md },
-  backBtn: { position: 'absolute', top: 50, left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: '#00000066', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
-  backText: { color: '#FFF', fontSize: fontSize.lg },
+  backBtn: { position: 'absolute', top: 50, left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: colors.overlayDark, justifyContent: 'center', alignItems: 'center', zIndex: 1 },
+  backText: { color: colors.white, fontSize: fontSize.lg },
   infoCard: { backgroundColor: colors.surface, padding: spacing.lg, borderRadius: borderRadius.lg, gap: spacing.xs },
   nameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   shopName: { fontSize: fontSize.xl, fontWeight: '700', color: colors.text },
   ratingBadge: { backgroundColor: colors.primary, paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.sm },
-  ratingText: { color: '#FFF', fontSize: fontSize.sm, fontWeight: '600' },
+  ratingText: { color: colors.white, fontSize: fontSize.sm, fontWeight: '600' },
   meta: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: spacing.xs },
   tabs: { flexDirection: 'row', backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   tab: { flex: 1, paddingVertical: spacing.md, alignItems: 'center' },
@@ -164,7 +161,6 @@ const styles = StyleSheet.create({
   productName: { fontSize: fontSize.md, fontWeight: '500', color: colors.text },
   productMeta: { fontSize: fontSize.xs, color: colors.textSecondary },
   productPrice: { fontSize: fontSize.lg, fontWeight: '700', color: colors.primary },
-  emptyTab: { textAlign: 'center', color: colors.textSecondary, padding: spacing.xl },
   infoSection: { padding: spacing.lg, backgroundColor: colors.surface },
   infoLabel: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: spacing.md },
   infoValue: { fontSize: fontSize.md, color: colors.text, marginTop: spacing.xs },
@@ -172,8 +168,8 @@ const styles = StyleSheet.create({
   cartIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
   cartIconText: { fontSize: 20 },
   bottomInfo: { flex: 1, marginLeft: spacing.md },
-  bottomPrice: { color: '#FFF', fontSize: fontSize.lg, fontWeight: '700' },
+  bottomPrice: { color: colors.white, fontSize: fontSize.lg, fontWeight: '700' },
   bottomMeta: { color: '#FFFFFF99', fontSize: fontSize.xs },
   bottomBtn: { backgroundColor: colors.textLight, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.md },
-  bottomBtnText: { color: '#FFF', fontSize: fontSize.sm, fontWeight: '600' },
+  bottomBtnText: { color: colors.white, fontSize: fontSize.sm, fontWeight: '600' },
 });

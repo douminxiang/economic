@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useFavoriteList, useToggleFavorite } from '../hooks';
 import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { EmptyView } from '../components';
 
 export default function FavoriteScreen({ navigation }: any) {
   const { data } = useFavoriteList();
@@ -42,11 +43,7 @@ export default function FavoriteScreen({ navigation }: any) {
             </TouchableOpacity>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>暂无收藏</Text>
-          </View>
-        }
+        ListEmptyComponent={<EmptyView message="暂无收藏" hint="收藏喜欢的商家" />}
       />
     </View>
   );
@@ -64,12 +61,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
     borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm, ...shadows.sm,
   },
-  cardImage: { width: 64, height: 64, borderRadius: borderRadius.sm, backgroundColor: '#F0F0F0' },
+  cardImage: { width: 64, height: 64, borderRadius: borderRadius.sm, backgroundColor: colors.border },
   cardInfo: { flex: 1, marginLeft: spacing.md },
   cardName: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
   cardMeta: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs },
   removeBtn: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
   removeBtnText: { fontSize: fontSize.sm, color: colors.textSecondary },
-  emptyContainer: { alignItems: 'center', marginTop: spacing.xl * 2 },
-  emptyText: { fontSize: fontSize.md, color: colors.textSecondary },
 });

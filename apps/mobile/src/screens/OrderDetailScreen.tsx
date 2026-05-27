@@ -4,11 +4,11 @@ import { useOrderDetail, usePayOrder, useCancelOrder, useConfirmOrder } from '..
 import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
-  0: { text: '待付款', color: '#FF9800' },
+  0: { text: '待付款', color: colors.warning },
   1: { text: '已付款', color: colors.primary },
   2: { text: '制作中', color: colors.primary },
   3: { text: '配送中', color: colors.primary },
-  4: { text: '已完成', color: '#4CAF50' },
+  4: { text: '已完成', color: colors.success },
   5: { text: '已取消', color: colors.textSecondary },
 };
 
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   statusCard: {
     borderRadius: borderRadius.md, padding: spacing.lg, marginBottom: spacing.md,
   },
-  statusText: { fontSize: fontSize.xl, fontWeight: '600', color: '#FFFFFF' },
+  statusText: { fontSize: fontSize.xl, fontWeight: '600', color: colors.white },
   statusSub: { fontSize: fontSize.sm, color: '#FFFFFFCC', marginTop: spacing.xs },
   section: {
     backgroundColor: colors.surface, borderRadius: borderRadius.md,
@@ -162,5 +162,5 @@ const styles = StyleSheet.create({
     flex: 1, height: 44, borderRadius: 22, backgroundColor: colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  primaryBtnText: { fontSize: fontSize.md, fontWeight: '500', color: '#FFFFFF' },
+  primaryBtnText: { fontSize: fontSize.md, fontWeight: '500', color: colors.white },
 });

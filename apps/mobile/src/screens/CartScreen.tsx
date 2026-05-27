@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react
 import { useCart, useUpdateCartItem, useRemoveCartItem, useClearCart } from '../hooks';
 import { useCartStore } from '../stores/cartStore';
 import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { EmptyView } from '../components';
 
 export default function CartScreen({ navigation }: any) {
   const { data } = useCart();
@@ -27,7 +28,7 @@ export default function CartScreen({ navigation }: any) {
           <Text style={styles.headerTitle}>购物车</Text>
         </View>
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>购物车是空的</Text>
+          <EmptyView message="购物车是空的" hint="去逛逛发现美食" />
           <TouchableOpacity style={styles.goShopBtn} onPress={() => navigation.navigate('Home')}>
             <Text style={styles.goShopText}>去逛逛</Text>
           </TouchableOpacity>
@@ -116,7 +117,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
     borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm, ...shadows.sm,
   },
-  itemImagePlaceholder: { width: 64, height: 64, borderRadius: borderRadius.sm, backgroundColor: '#F0F0F0' },
+  itemImagePlaceholder: { width: 64, height: 64, borderRadius: borderRadius.sm, backgroundColor: colors.border },
   itemInfo: { flex: 1, marginLeft: spacing.md },
   itemName: { fontSize: fontSize.md, fontWeight: '500', color: colors.text },
   itemPrice: { fontSize: fontSize.sm, color: colors.primary, marginTop: spacing.xs },
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
   },
   qtyBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   qtyBtnText: { fontSize: fontSize.md, color: colors.textSecondary },
-  qtyBtnTextActive: { color: '#FFFFFF' },
+  qtyBtnTextActive: { color: colors.white },
   qtyText: { fontSize: fontSize.md, fontWeight: '600', color: colors.text, minWidth: 20, textAlign: 'center' },
   bottomBar: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
@@ -141,9 +142,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary, paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm, borderRadius: borderRadius.full,
   },
-  checkoutText: { color: '#FFFFFF', fontSize: fontSize.md, fontWeight: '600' },
+  checkoutText: { color: colors.white, fontSize: fontSize.md, fontWeight: '600' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyText: { fontSize: fontSize.md, color: colors.textSecondary, marginBottom: spacing.md },
   goShopBtn: { backgroundColor: colors.primary, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: borderRadius.full },
-  goShopText: { color: '#FFFFFF', fontSize: fontSize.md, fontWeight: '600' },
+  goShopText: { color: colors.white, fontSize: fontSize.md, fontWeight: '600' },
 });
