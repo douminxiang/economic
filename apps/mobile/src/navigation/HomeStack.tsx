@@ -11,9 +11,9 @@ const Stack = createNativeStackNavigator();
 
 export function HomeStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="HomeMain" component={HomeScreen} />
-      <Stack.Screen name="Search" component={SearchScreen} />
+      <Stack.Screen name="Search" component={SearchScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="Category" component={CategoryScreen} />
       <Stack.Screen name="ShopDetail" component={ShopDetailScreen} />
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
