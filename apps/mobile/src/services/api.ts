@@ -122,3 +122,64 @@ export const favoriteApi = {
   list: () => api.get('/favorites'),
   check: (shopId: number) => api.get(`/favorites/check/${shopId}`),
 };
+
+// ============ AI 助手 ============
+export const aiApi = {
+  chat: (message: string, conversationId?: number) => {
+    return api.post('/ai/chat', { message, conversationId });
+  },
+  history: () => api.get('/ai/history'),
+  messages: (conversationId: number) => api.get(`/ai/conversation/${conversationId}`),
+};
+
+// SSE Stream Helper
+export const createChatStream = async (
+  message: string,
+  conversationId: number | undefined,
+  onChunk: (chunk: string) => void,
+  onDone: (conversationId: number) => void,
+  onError: (error: string) => void,
+) => {
+  const token = storage.getString('accessToken');
+  const response = await fetch('http://10.0.2.2:3000/api/v1/ai/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ message, conversationId }),
+  });
+
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+
+  if (!reader) {
+    onError('Failed to create stream');
+    return;
+  }
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const text = decoder.decode(value);
+    const lines = text.split('\n');
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.chunk) {
+            onChunk(data.chunk);
+          } else if (data.done) {
+            onDone(data.conversationId);
+          } else if (data.error) {
+            onError(data.error);
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+    }
+  }
+};
