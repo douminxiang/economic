@@ -18,6 +18,11 @@ model User {
 
   addresses Address[]
 
+  cart      Cart?
+  orders    Order[]
+  reviews   Review[]
+  favorites Favorite[]
+
   @@map("users")
 }
 
@@ -81,6 +86,10 @@ model Shop {
   category  Category?  @relation(fields: [categoryId], references: [id])
   products  Product[]
 
+  orders    Order[]
+  reviews   Review[]
+  favorites Favorite[]
+
   @@index([categoryId])
   @@index([status])
   @@map("shops")
@@ -105,7 +114,125 @@ model Product {
   shop      Shop?      @relation(fields: [shopId], references: [id])
   category  Category?  @relation(fields: [categoryId], references: [id])
 
+  cartItems CartItem[]
+
   @@index([shopId])
   @@index([categoryId])
   @@map("products")
+}
+
+// ============ 购物车 ============
+
+model Cart {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  cartId    Int
+  productId Int
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart    Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product  @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+// ============ 订单 ============
+
+model Order {
+  id             Int      @id @default(autoincrement())
+  orderNo        String   @unique @db.VarChar(32)
+  userId         Int
+  shopId         Int
+  status         Int      @default(0)
+  totalAmount    Decimal  @db.Decimal(10, 2)
+  deliveryFee    Decimal  @default(0) @db.Decimal(10, 2)
+  packagingFee   Decimal  @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal  @default(0) @db.Decimal(10, 2)
+  payAmount      Decimal  @db.Decimal(10, 2)
+  payMethod      String?  @db.VarChar(20)
+  payTime        DateTime?
+  remark         String?  @db.VarChar(200)
+  addressSnapshot Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user   User        @relation(fields: [userId], references: [id])
+  shop   Shop        @relation(fields: [shopId], references: [id])
+  items  OrderItem[]
+  review Review?
+
+  @@index([userId])
+  @@index([shopId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  name      String   @db.VarChar(100)
+  image     String?  @db.VarChar(500)
+  price     Decimal  @db.Decimal(10, 2)
+  quantity  Int
+  specs     String?  @db.VarChar(200)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+// ============ 评价 ============
+
+model Review {
+  id             Int      @id @default(autoincrement())
+  orderId        Int      @unique
+  userId         Int
+  shopId         Int
+  rating         Int
+  tasteRating    Int?
+  packRating     Int?
+  deliveryRating Int?
+  content        String?  @db.Text
+  images         Json?
+  tags           Json?
+  createdAt      DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+  shop  Shop  @relation(fields: [shopId], references: [id])
+
+  @@index([shopId])
+  @@index([userId])
+  @@map("reviews")
+}
+
+// ============ 收藏 ============
+
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  shopId    Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shop Shop @relation(fields: [shopId], references: [id])
+
+  @@unique([userId, shopId])
+  @@index([userId])
+  @@map("favorites")
 }
