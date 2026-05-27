@@ -11,6 +11,7 @@ export const colors = {
   success: '#4CAF50',
   error: '#F44336',
   warning: '#FF9800',
+  white: '#FFFFFF',
   overlay: 'rgba(0,0,0,0.5)',
 };
 
@@ -33,6 +34,7 @@ export const fontSize = {
 };
 
 export const borderRadius = {
+  xs: 2,
   sm: 4,
   md: 8,
   lg: 12,
