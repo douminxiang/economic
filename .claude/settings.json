@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(curl -s http://localhost:3000/api/v1/shops/21)"
+      "Bash(curl -s http://localhost:3000/api/v1/shops/21)",
+      "Bash(curl -s http://localhost:3000/api/v1/products?limit=1)",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(curl -s http://localhost:3000/api/v1)",
+      "Bash(curl -s http://localhost:3000/api/v1/auth/login -X POST -H 'Content-Type: application/json' -d '{\"phone\":\"13800138000\",\"password\":\"123456\"}')",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(curl -s http://localhost:3000/api/v1/products?limit=2)",
+      "Bash(curl -s -X POST http://localhost:3000/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"phone\":\"13800138000\",\"password\":\"123456\"}')",
+      "Bash(set -x)",
+      "Bash(curl -s -X POST http://localhost:3000/api/v1/cart/items -H 'Content-Type: application/json' -H 'Authorization: Bearer __TRACKED_VAR__' -d '{\"productId\":438,\"quantity\":1}')"
     ]
   }
 }
