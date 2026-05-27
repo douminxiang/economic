@@ -22,6 +22,7 @@ model User {
   orders    Order[]
   reviews   Review[]
   favorites Favorite[]
+  aiConversations AIConversation[]
 
   @@map("users")
 }
@@ -235,4 +236,33 @@ model Favorite {
   @@unique([userId, shopId])
   @@index([userId])
   @@map("favorites")
+}
+
+// ============ AI 对话 ============
+
+model AIConversation {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String?  @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AIMessage[]
+
+  @@index([userId])
+  @@map("ai_conversations")
+}
+
+model AIMessage {
+  id             Int      @id @default(autoincrement())
+  conversationId Int
+  role           String   @db.VarChar(20) // 'user' | 'assistant'
+  content        String   @db.Text
+  createdAt      DateTime @default(now())
+
+  conversation AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("ai_messages")
 }
