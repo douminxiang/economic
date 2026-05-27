@@ -38,6 +38,8 @@ export class AiController {
               yield { data: JSON.stringify({ chunk, conversationId }) } as MessageEvent;
             }
           }
+          // Save full assistant reply to database
+          await this.aiService.saveAssistantMessage(conversationId, fullContent);
           // End signal
           yield { data: JSON.stringify({ done: true, conversationId }) } as MessageEvent;
         },
