@@ -1,13 +1,14 @@
 // apps/server/src/modules/ai/ai.controller.ts
-import { Controller, Post, Get, Sse, Body, Param, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Sse, Body, Param, Logger, UseGuards } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { ChatDto } from './dto/chat.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Observable, from } from 'rxjs';
-import { map } from 'rxjs/operators';
 import { MessageEvent } from '@nestjs/common';
 
 @Controller('ai')
+@UseGuards(JwtAuthGuard)
 export class AiController {
   private readonly logger = new Logger(AiController.name);
 
@@ -48,7 +49,7 @@ export class AiController {
       return from(asyncIterable);
     } catch (error) {
       this.logger.error('AI chat 失败', error);
-      return from([{ data: JSON.stringify({ error: error.message }) } as MessageEvent]);
+      return from([{ data: JSON.stringify({ error: 'AI 服务暂时不可用' }) } as MessageEvent]);
     }
   }
 

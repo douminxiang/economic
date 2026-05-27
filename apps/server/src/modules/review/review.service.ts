@@ -22,31 +22,34 @@ export class ReviewService {
     if (!order) throw new NotFoundException('订单不存在或状态异常');
     if (order.review) throw new BadRequestException('该订单已评价');
 
-    const review = await this.prisma.review.create({
-      data: {
-        orderId: dto.orderId,
-        userId,
-        shopId: order.shopId,
-        rating: dto.rating,
-        tasteRating: dto.tasteRating,
-        packRating: dto.packRating,
-        deliveryRating: dto.deliveryRating,
-        content: dto.content,
-        images: dto.images ?? [],
-        tags: dto.tags ?? [],
-      },
-    });
+    const review = await this.prisma.$transaction(async (tx) => {
+      const review = await tx.review.create({
+        data: {
+          orderId: dto.orderId,
+          userId,
+          shopId: order.shopId,
+          rating: dto.rating,
+          tasteRating: dto.tasteRating,
+          packRating: dto.packRating,
+          deliveryRating: dto.deliveryRating,
+          content: dto.content,
+          images: dto.images ?? [],
+          tags: dto.tags ?? [],
+        },
+      });
 
-    // Update shop average rating
-    const avgResult = await this.prisma.review.aggregate({
-      where: { shopId: order.shopId },
-      _avg: { rating: true },
-    });
-    const avgRating = avgResult._avg.rating ?? 5;
+      const avgResult = await tx.review.aggregate({
+        where: { shopId: order.shopId },
+        _avg: { rating: true },
+      });
+      const avgRating = avgResult._avg.rating ?? 5;
 
-    await this.prisma.shop.update({
-      where: { id: order.shopId },
-      data: { rating: Math.round(avgRating * 10) / 10 },
+      await tx.shop.update({
+        where: { id: order.shopId },
+        data: { rating: Math.round(avgRating * 10) / 10 },
+      });
+
+      return review;
     });
 
     return review;

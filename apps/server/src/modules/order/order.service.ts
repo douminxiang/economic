@@ -59,28 +59,32 @@ export class OrderService {
     const packagingFee = 2;
     const payAmount = totalAmount + deliveryFee + packagingFee;
 
-    const order = await this.prisma.order.create({
-      data: {
-        orderNo: this.generateOrderNo(),
-        userId,
-        shopId,
-        status: 0,
-        totalAmount,
-        deliveryFee,
-        packagingFee,
-        payAmount,
-        remark,
-        addressSnapshot: {
-          name: address.name,
-          phone: address.phone,
-          address: `${address.province}${address.city}${address.district}${address.detail}`,
+    const order = await this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.create({
+        data: {
+          orderNo: this.generateOrderNo(),
+          userId,
+          shopId,
+          status: 0,
+          totalAmount,
+          deliveryFee,
+          packagingFee,
+          payAmount,
+          remark,
+          addressSnapshot: {
+            name: address.name,
+            phone: address.phone,
+            address: `${address.province}${address.city}${address.district}${address.detail}`,
+          },
+          items: { create: orderItems },
         },
-        items: { create: orderItems },
-      },
-      include: { items: true },
-    });
+        include: { items: true },
+      });
 
-    await this.prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+      await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+
+      return order;
+    });
 
     return order;
   }
