@@ -8,5 +8,7 @@ export class LoginDto {
   phone: string;
 
   @IsString()
+  @MinLength(6)
+  @MaxLength(32)
   password: string;
 }

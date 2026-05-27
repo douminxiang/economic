@@ -1,4 +1,4 @@
-import { IsOptional, IsIn, IsNumber, Min } from 'class-validator';
+import { IsOptional, IsIn, IsNumber, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QueryOrderDto {
@@ -15,5 +15,6 @@ export class QueryOrderDto {
   @IsOptional()
   @Type(() => Number)
   @Min(1)
+  @Max(100)
   limit: number = 10;
 }
