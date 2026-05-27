@@ -1,5 +1,5 @@
 // apps/server/src/modules/ai/ai.service.ts
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import Anthropic from '@anthropic-ai/sdk';
 import { ChatMessage } from './types';
@@ -18,13 +18,15 @@ export class AiService {
   async chat(userId: number, message: string, conversationId?: number) {
     // 1. 加载或创建对话
     const conversation = conversationId
-      ? await this.prisma.aIConversation.findUnique({ where: { id: conversationId } })
+      ? await this.prisma.aIConversation.findFirst({
+          where: { id: conversationId, userId },
+        })
       : await this.prisma.aIConversation.create({
           data: { userId, title: message.slice(0, 50) },
         });
 
     if (!conversation) {
-      throw new Error('Conversation not found');
+      throw new NotFoundException('会话不存在');
     }
 
     // 2. 保存用户消息
@@ -32,12 +34,13 @@ export class AiService {
       data: { conversationId: conversation.id, role: 'user', content: message },
     });
 
-    // 3. 获取历史消息（最近 10 条）
-    const history = await this.prisma.aIMessage.findMany({
+    // 3. 获取历史消息（最近 10 条，降序取，再翻转为升序）
+    const historyRaw = await this.prisma.aIMessage.findMany({
       where: { conversationId: conversation.id },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
       take: 10,
     });
+    const history = historyRaw.reverse();
 
     const messages: ChatMessage[] = history.map((m) => ({
       role: m.role as 'user' | 'assistant',
@@ -45,20 +48,24 @@ export class AiService {
     }));
 
     // 4. 构建 System Prompt
-    const systemPrompt = this.buildSystemPrompt(userId);
+    const systemPrompt = this.buildSystemPrompt();
 
     // 5. 调用 Claude API (stream)
-    const stream = this.anthropic.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages,
-    });
-
-    return { stream, conversationId: conversation.id };
+    try {
+      const stream = this.anthropic.messages.stream({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages,
+      });
+      return { stream, conversationId: conversation.id };
+    } catch (error) {
+      this.logger.error('Claude API 调用失败', error);
+      throw error;
+    }
   }
 
-  private buildSystemPrompt(userId: number): string {
+  private buildSystemPrompt(): string {
     return `你是一个本地生活服务智能助手。你可以帮助用户：
 - 查找附近的餐厅、商店
 - 推荐美食和商家
@@ -82,7 +89,7 @@ export class AiService {
     });
 
     if (!conversation || conversation.userId !== userId) {
-      throw new Error('Conversation not found');
+      throw new NotFoundException('会话不存在');
     }
 
     return this.prisma.aIMessage.findMany({
