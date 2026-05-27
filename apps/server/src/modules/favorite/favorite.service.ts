@@ -41,7 +41,7 @@ export class FavoriteService {
       id: f.id,
       shopId: f.shop.id,
       shopName: f.shop.name,
-      shopImage: Array.isArray(f.shop.images) ? f.shop.images[0] : null,
+      shopImage: f.shop.images != null ? (Array.isArray(f.shop.images) ? f.shop.images[0] : null) : null,
       rating: Number(f.shop.rating),
       monthlySales: f.shop.monthlySales,
       minOrder: Number(f.shop.minOrder),
