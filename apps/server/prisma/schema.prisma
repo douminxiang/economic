@@ -23,6 +23,7 @@ model User {
   reviews   Review[]
   favorites Favorite[]
   aiConversations AIConversation[]
+  browseHistories BrowseHistory[]
 
   @@map("users")
 }
@@ -90,6 +91,7 @@ model Shop {
   orders    Order[]
   reviews   Review[]
   favorites Favorite[]
+  browseHistories BrowseHistory[]
 
   @@index([categoryId])
   @@index([status])
@@ -265,4 +267,20 @@ model AIMessage {
 
   @@index([conversationId])
   @@map("ai_messages")
+}
+
+// ============ 浏览历史 ============
+
+model BrowseHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  shopId    Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, shopId])
+  @@index([userId])
+  @@map("browse_histories")
 }

@@ -13,6 +13,7 @@ import { OrderModule } from './modules/order/order.module';
 import { ReviewModule } from './modules/review/review.module';
 import { FavoriteModule } from './modules/favorite/favorite.module';
 import { AiModule } from './modules/ai/ai.module';
+import { BrowseHistoryModule } from './modules/browse-history/browse-history.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { AiModule } from './modules/ai/ai.module';
     ReviewModule,
     FavoriteModule,
     AiModule,
+    BrowseHistoryModule,
   ],
 })
 export class AppModule {}
