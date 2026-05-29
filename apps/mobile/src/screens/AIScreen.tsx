@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, Animated } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Animated } from 'react-native';
 import { useStore } from 'zustand';
 import { ChatBubble } from '../components/ai/ChatBubble';
 import { QuickQuestions } from '../components/ai/QuickQuestions';
 import { ChatInput } from '../components/ai/ChatInput';
 import { useAIStore, AIMessage } from '../stores/aiStore';
-import { createChatStream } from '../services/api';
+import { createChatStream, shopApi } from '../services/api';
 import { colors, spacing, fontSize, borderRadius } from '../theme/tokens';
 
-export default function AIScreen() {
-  const flatListRef = useRef<FlatList>(null);
+export default function AIScreen({ navigation }: any) {
+  const scrollRef = useRef<ScrollView>(null);
   const headerOpacity = useRef(new Animated.Value(0)).current;
 
   const messages = useStore(useAIStore, (s) => s.messages);
@@ -28,7 +28,7 @@ export default function AIScreen() {
   }, []);
 
   useEffect(() => {
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages]);
 
   const handleSend = useCallback(async (content: string) => {
@@ -56,36 +56,27 @@ export default function AIScreen() {
     );
   }, [currentConversationId]);
 
-  const renderWelcome = () => (
-    <Animated.View style={[styles.welcomeContainer, { opacity: headerOpacity }]}>
-      <View style={styles.avatarCircle}>
-        <Text style={styles.avatarEmoji}>🤖</Text>
-      </View>
-      <Text style={styles.welcomeTitle}>美食达人AI</Text>
-      <Text style={styles.welcomeSubtitle}>告诉我你想吃什么，我来帮你找好店</Text>
+  const handleRestaurantPress = useCallback(async (name: string) => {
+    try {
+      const cleanName = name
+        .replace(/[^一-龥a-zA-Z0-9\s]/g, '')
+        .replace(/\s+/g, '')
+        .trim();
 
-      <View style={styles.featureRow}>
-        <View style={styles.featureCard}>
-          <Text style={styles.featureIcon}>🔍</Text>
-          <Text style={styles.featureText}>智能搜索</Text>
-        </View>
-        <View style={styles.featureCard}>
-          <Text style={styles.featureIcon}>⭐</Text>
-          <Text style={styles.featureText}>精选推荐</Text>
-        </View>
-        <View style={styles.featureCard}>
-          <Text style={styles.featureIcon}>📍</Text>
-          <Text style={styles.featureText}>附近好店</Text>
-        </View>
-      </View>
+      if (!cleanName) return;
 
-      <QuickQuestions onSelect={handleSend} />
-    </Animated.View>
-  );
-
-  const renderItem = ({ item }: { item: AIMessage }) => (
-    <ChatBubble role={item.role} content={item.content} />
-  );
+      const res = await shopApi.list({ keyword: cleanName, page: 1, limit: 5 });
+      const shops = res.data?.items || [];
+      const shop = shops.find((s: any) => s.name.includes(cleanName) || cleanName.includes(s.name));
+      if (shop) {
+        navigation.navigate('Home' as never, { screen: 'ShopDetail', params: { id: shop.id } } as never);
+      } else if (shops.length > 0) {
+        navigation.navigate('Home' as never, { screen: 'ShopDetail', params: { id: shops[0].id } } as never);
+      }
+    } catch (e) {
+      console.log('[AI] Restaurant press error:', e);
+    }
+  }, [navigation]);
 
   return (
     <View style={styles.container}>
@@ -99,30 +90,62 @@ export default function AIScreen() {
         )}
       </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+      <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.listContent}
-        ListHeaderComponent={messages.length === 0 ? renderWelcome : null}
-        ListFooterComponent={
-          isStreaming ? (
-            <View style={styles.typingRow}>
-              <View style={styles.typingAvatar}>
-                <Text style={{ fontSize: 14 }}>🤖</Text>
+        keyboardShouldPersistTaps="handled"
+      >
+        {messages.length === 0 && (
+          <Animated.View style={[styles.welcomeContainer, { opacity: headerOpacity }]}>
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarEmoji}>🤖</Text>
+            </View>
+            <Text style={styles.welcomeTitle}>美食达人AI</Text>
+            <Text style={styles.welcomeSubtitle}>告诉我你想吃什么，我来帮你找好店</Text>
+
+            <View style={styles.featureRow}>
+              <View style={styles.featureCard}>
+                <Text style={styles.featureIcon}>🔍</Text>
+                <Text style={styles.featureText}>智能搜索</Text>
               </View>
-              <View style={styles.typingBubble}>
-                <View style={styles.typingDots}>
-                  <View style={[styles.dot, styles.dot1]} />
-                  <View style={[styles.dot, styles.dot2]} />
-                  <View style={[styles.dot, styles.dot3]} />
-                </View>
+              <View style={styles.featureCard}>
+                <Text style={styles.featureIcon}>⭐</Text>
+                <Text style={styles.featureText}>精选推荐</Text>
+              </View>
+              <View style={styles.featureCard}>
+                <Text style={styles.featureIcon}>📍</Text>
+                <Text style={styles.featureText}>附近好店</Text>
               </View>
             </View>
-          ) : null
-        }
-      />
+
+            <QuickQuestions onSelect={handleSend} />
+          </Animated.View>
+        )}
+
+        {messages.map((item) => (
+          <ChatBubble
+            key={item.id}
+            role={item.role}
+            content={item.content}
+            onRestaurantPress={handleRestaurantPress}
+          />
+        ))}
+
+        {isStreaming && (
+          <View style={styles.typingRow}>
+            <View style={styles.typingAvatar}>
+              <Text style={{ fontSize: 14 }}>🤖</Text>
+            </View>
+            <View style={styles.typingBubble}>
+              <View style={styles.typingDots}>
+                <View style={[styles.dot, styles.dot1]} />
+                <View style={[styles.dot, styles.dot2]} />
+                <View style={[styles.dot, styles.dot3]} />
+              </View>
+            </View>
+          </View>
+        )}
+      </ScrollView>
 
       <ChatInput onSend={handleSend} disabled={isStreaming} />
     </View>

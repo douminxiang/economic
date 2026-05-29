@@ -139,7 +139,7 @@ export const browseHistoryApi = {
   clear: () => api.delete('/browse-history'),
 };
 
-// SSE Stream Helper — uses response.text() (React Native fetch lacks ReadableStream)
+// SSE Stream Helper — uses XMLHttpRequest for SSE streaming (most reliable in React Native)
 export const createChatStream = async (
   message: string,
   conversationId: number | undefined,
@@ -147,98 +147,95 @@ export const createChatStream = async (
   onDone: (conversationId: number) => void,
   onError: (error: string) => void,
 ) => {
-  let token = storage.getString('accessToken');
+  const token = storage.getString('accessToken');
 
-  const doFetch = async (accessToken: string) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 30000);
-    try {
-      const res = await fetch('http://10.0.2.2:3000/api/v1/ai/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ message, conversationId }),
-        signal: controller.signal,
-      });
-      return res;
-    } finally {
-      clearTimeout(timer);
-    }
-  };
+  return new Promise<void>((resolve) => {
+    const xhr = new XMLHttpRequest();
+    const url = 'http://10.0.2.2:3000/api/v1/ai/chat';
+    console.log('[AI] XHR opening:', url, 'token:', token ? 'yes' : 'no');
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.timeout = 60000;
 
-  try {
-    let response = await doFetch(token || '');
+    let buffer = '';
+    let lastPos = 0;
+    let done = false;
 
-    // Auto-refresh token on 401
-    if (response.status === 401) {
-      const refreshToken = storage.getString('refreshToken');
-      if (refreshToken) {
-        try {
-          const refreshRes = await fetch('http://10.0.2.2:3000/api/v1/auth/refresh', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken }),
-          });
-          if (refreshRes.ok) {
-            const refreshData = await refreshRes.json();
-            const newToken = refreshData.data?.accessToken;
-            if (newToken) {
-              storage.set('accessToken', newToken);
-              token = newToken;
-              response = await doFetch(newToken);
-            }
+    // Use onreadystatechange for more reliable event firing
+    xhr.onreadystatechange = () => {
+      console.log('[AI] XHR readyState:', xhr.readyState, 'status:', xhr.status);
+      // readyState 3 = LOADING (partial data received)
+      if (xhr.readyState === 3 && !done) {
+        const text = xhr.responseText;
+        if (text.length > lastPos) {
+          buffer += text.slice(lastPos);
+          lastPos = text.length;
+
+          const lines = buffer.split('\n');
+          // Keep incomplete last line in buffer
+          const lastLine = lines[lines.length - 1];
+          if (!lastLine.endsWith('\n') && !lastLine.includes('done')) {
+            buffer = lastLine;
+            lines.pop();
+          } else {
+            buffer = '';
           }
-        } catch {
-          // refresh failed
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data: ')) continue;
+            const payload = trimmed.slice(6);
+            if (payload === '[DONE]') continue;
+
+            try {
+              const data = JSON.parse(payload);
+              if (data.chunk !== undefined && data.chunk !== '') {
+                onChunk(data.chunk);
+              } else if (data.done) {
+                done = true;
+                onDone(data.conversationId);
+                resolve();
+              } else if (data.error) {
+                done = true;
+                onError(data.error);
+                resolve();
+              }
+            } catch {}
+          }
         }
       }
+    };
 
-      if (response.status === 401) {
+    xhr.onload = () => {
+      if (done) return;
+      console.log('[AI] XHR onload, status:', xhr.status);
+      if (xhr.status === 401) {
         onError('登录已过期，请重新登录');
-        return;
-      }
-    }
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.log('[AI] Error response:', response.status, errText);
-      onError(`请求失败: ${response.status}`);
-      return;
-    }
-
-    const text = await response.text();
-    console.log('[AI] Response length:', text.length);
-
-    let foundData = false;
-    const lines = text.split('\n');
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.startsWith('data: ')) {
-        foundData = true;
+      } else if (xhr.status >= 400) {
+        // Try to parse error response
+        let errorMsg = `请求失败: ${xhr.status}`;
         try {
-          const data = JSON.parse(trimmed.slice(6));
-          if (data.chunk) {
-            onChunk(data.chunk);
-          } else if (data.done) {
-            onDone(data.conversationId);
-          } else if (data.error) {
-            onError(data.error);
-          }
-        } catch (e) {
-          console.log('[AI] Parse error:', trimmed);
-        }
+          const resp = JSON.parse(xhr.responseText);
+          if (resp.message) errorMsg = resp.message;
+        } catch {}
+        onError(errorMsg);
       }
-    }
+      resolve();
+    };
 
-    if (!foundData) {
-      console.log('[AI] No SSE data found. Raw response:', text.slice(0, 500));
-      onError('AI 未返回有效数据');
-    }
-  } catch (e: any) {
-    const msg = e?.name === 'AbortError' ? '请求超时，请重试' : (e?.message || '网络连接失败');
-    onError(msg);
-  }
+    xhr.onerror = () => {
+      if (!done) onError('网络连接失败');
+      resolve();
+    };
+
+    xhr.ontimeout = () => {
+      if (!done) onError('请求超时，请重试');
+      resolve();
+    };
+
+    const body = JSON.stringify({ message, conversationId });
+    console.log('[AI] XHR sending:', body);
+    xhr.send(body);
+  });
 };

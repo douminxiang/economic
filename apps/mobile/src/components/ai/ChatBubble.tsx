@@ -1,13 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, fontSize, spacing, borderRadius } from '../../theme/tokens';
 
 interface Props {
   role: 'user' | 'assistant';
   content: string;
+  onRestaurantPress?: (name: string) => void;
 }
 
-// Parse restaurant recommendations from AI response
 function parseRestaurants(text: string): { intro: string; restaurants: string[] } {
   const parts = text.split(/(?=🍽️)/);
   const intro = parts[0]?.trim() || '';
@@ -15,7 +15,7 @@ function parseRestaurants(text: string): { intro: string; restaurants: string[] 
   return { intro, restaurants };
 }
 
-function RestaurantCard({ text }: { text: string }) {
+function RestaurantCard({ text, onPress }: { text: string; onPress?: (name: string) => void }) {
   const lines = text.split('\n').filter((l) => l.trim());
   const name = lines[0]?.replace(/🍽️?\s*\**/g, '').replace(/\**/g, '').trim() || '';
 
@@ -25,7 +25,11 @@ function RestaurantCard({ text }: { text: string }) {
   };
 
   return (
-    <View style={styles.restaurantCard}>
+    <TouchableOpacity
+      style={styles.restaurantCard}
+      activeOpacity={0.7}
+      onPress={() => onPress?.(name)}
+    >
       <View style={styles.cardHeader}>
         <Text style={styles.cardName}>{name}</Text>
       </View>
@@ -61,11 +65,14 @@ function RestaurantCard({ text }: { text: string }) {
           </View>
         ) : null}
       </View>
-    </View>
+      <View style={styles.cardButton}>
+        <Text style={styles.cardButtonText}>查看详情 ›</Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 
-export const ChatBubble: React.FC<Props> = ({ role, content }) => {
+export const ChatBubble: React.FC<Props> = ({ role, content, onRestaurantPress }) => {
   const isUser = role === 'user';
 
   if (isUser) {
@@ -78,7 +85,6 @@ export const ChatBubble: React.FC<Props> = ({ role, content }) => {
     );
   }
 
-  // Assistant message — parse for restaurant cards
   const { intro, restaurants } = parseRestaurants(content);
 
   return (
@@ -89,7 +95,7 @@ export const ChatBubble: React.FC<Props> = ({ role, content }) => {
       <View style={styles.assistantContent}>
         {intro ? <Text style={styles.assistantText}>{intro}</Text> : null}
         {restaurants.map((r, i) => (
-          <RestaurantCard key={i} text={r} />
+          <RestaurantCard key={i} text={r} onPress={onRestaurantPress} />
         ))}
         {!intro && restaurants.length === 0 && content ? (
           <Text style={styles.assistantText}>{content}</Text>
@@ -100,7 +106,6 @@ export const ChatBubble: React.FC<Props> = ({ role, content }) => {
 };
 
 const styles = StyleSheet.create({
-  // User
   userContainer: { marginVertical: 4, paddingHorizontal: spacing.md, alignItems: 'flex-end' },
   userBubble: {
     backgroundColor: colors.primary, maxWidth: '80%',
@@ -109,7 +114,6 @@ const styles = StyleSheet.create({
   },
   userText: { fontSize: fontSize.md, color: '#FFF', lineHeight: 22 },
 
-  // Assistant
   assistantContainer: {
     marginVertical: 4, paddingHorizontal: spacing.md,
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
@@ -126,12 +130,10 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: borderRadius.xs, borderWidth: 1, borderColor: colors.border,
   },
 
-  // Restaurant card
   restaurantCard: {
     backgroundColor: colors.surface, borderRadius: borderRadius.lg,
     borderWidth: 1, borderColor: colors.border, marginTop: spacing.sm,
-    overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
+    marginBottom: spacing.sm,
   },
   cardHeader: {
     backgroundColor: '#FFF3ED', paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
@@ -143,4 +145,9 @@ const styles = StyleSheet.create({
   cardEmoji: { fontSize: fontSize.sm, marginTop: 1 },
   cardDetail: { flex: 1, fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
   cardReason: { color: colors.textSecondary, fontStyle: 'italic' },
+  cardButton: {
+    backgroundColor: colors.primary, paddingVertical: spacing.sm,
+    alignItems: 'center', borderTopWidth: 1, borderTopColor: '#FFE8DD',
+  },
+  cardButtonText: { color: '#FFF', fontSize: fontSize.sm, fontWeight: '600' },
 });

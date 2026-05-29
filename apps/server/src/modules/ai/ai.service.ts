@@ -1,21 +1,19 @@
 // apps/server/src/modules/ai/ai.service.ts
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import Anthropic from '@anthropic-ai/sdk';
 import { ChatMessage } from './types';
+
+const AI_BASE_URL = 'https://api.siliconflow.cn';
+const AI_MODEL = 'deepseek-ai/DeepSeek-V3.2';
 
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private anthropic: Anthropic;
 
-  constructor(private prisma: PrismaService) {
-    this.anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
+  constructor(private prisma: PrismaService) {}
 
   async chat(userId: number, message: string, conversationId?: number) {
+    this.logger.log(`AI chat: userId=${userId}, message=${message?.slice(0, 50)}, conversationId=${conversationId}`);
     const conversation = conversationId
       ? await this.prisma.aIConversation.findFirst({
           where: { id: conversationId, userId },
@@ -44,27 +42,35 @@ export class AiService {
       content: m.content,
     }));
 
-    // Query real restaurant data from DB
     const dbContext = await this.buildDbContext(message);
     const systemPrompt = this.buildSystemPrompt(dbContext);
 
-    try {
-      const stream = this.anthropic.messages.stream({
-        model: 'claude-sonnet-4-20250514',
+    // Call SiliconFlow (OpenAI-compatible) streaming API
+    const response = await fetch(`${AI_BASE_URL}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.ANTHROPIC_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: AI_MODEL,
         max_tokens: 1024,
-        system: systemPrompt,
-        messages,
-      });
-      return { stream, conversationId: conversation.id };
-    } catch (error) {
-      this.logger.error('Claude API 调用失败', error);
-      throw error;
+        stream: true,
+        messages: [{ role: 'system', content: systemPrompt }, ...messages],
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      this.logger.error(`AI API error: ${response.status} ${errText}`);
+      throw new Error(`AI 服务调用失败: ${response.status}`);
     }
+
+    return { stream: response, conversationId: conversation.id };
   }
 
   private async buildDbContext(userMessage: string): Promise<string> {
     try {
-      // Search shops by name, category, or address keywords
       const keywords = userMessage
         .replace(/[？！。，、\.\!\?\,\s]+/g, ' ')
         .trim()
@@ -72,7 +78,6 @@ export class AiService {
         .filter((w) => w.length >= 1);
 
       const conditions: any[] = [];
-
       for (const kw of keywords) {
         conditions.push(
           { name: { contains: kw } },
@@ -96,7 +101,6 @@ export class AiService {
       });
 
       if (shops.length === 0) {
-        // Fallback: return top-rated shops
         const topShops = await this.prisma.shop.findMany({
           where: { status: 1 },
           include: {
