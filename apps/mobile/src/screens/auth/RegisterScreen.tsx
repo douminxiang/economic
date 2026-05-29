@@ -61,6 +61,12 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.header}>
           <Text style={styles.title}>创建账户</Text>
           <Text style={styles.subtitle}>注册新账户开始使用</Text>
@@ -146,6 +152,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.xxl,
   },
+  topBar: {
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+  },
+  backIcon: { fontSize: 20, color: colors.text },
   header: {
     marginBottom: spacing.xl,
     alignItems: 'center',

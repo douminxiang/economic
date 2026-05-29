@@ -120,4 +120,6 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    implementation 'com.amap.api:3dmap:9.6.0'
 }

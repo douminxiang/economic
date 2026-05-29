@@ -12,6 +12,9 @@ export default function FavoriteScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>我的收藏</Text>
       </View>
 
@@ -52,9 +55,11 @@ export default function FavoriteScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
     backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
+  backIcon: { fontSize: 20, color: colors.text },
   headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
   listContent: { padding: spacing.md },
   card: {

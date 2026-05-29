@@ -25,6 +25,9 @@ export default function CartScreen({ navigation }: any) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>购物车</Text>
         </View>
         <View style={styles.emptyContainer}>
@@ -40,6 +43,9 @@ export default function CartScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>购物车</Text>
         <TouchableOpacity onPress={() => {
           Alert.alert('提示', '确定清空购物车？', [
@@ -106,11 +112,12 @@ export default function CartScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
     backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
+  backIcon: { fontSize: 20, color: colors.text },
+  headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text, flex: 1 },
   clearText: { fontSize: fontSize.sm, color: colors.textSecondary },
   listContent: { padding: spacing.md },
   itemCard: {

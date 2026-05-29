@@ -16,7 +16,6 @@ export class AiService {
   }
 
   async chat(userId: number, message: string, conversationId?: number) {
-    // 1. 加载或创建对话
     const conversation = conversationId
       ? await this.prisma.aIConversation.findFirst({
           where: { id: conversationId, userId },
@@ -29,12 +28,10 @@ export class AiService {
       throw new NotFoundException('会话不存在');
     }
 
-    // 2. 保存用户消息
     await this.prisma.aIMessage.create({
       data: { conversationId: conversation.id, role: 'user', content: message },
     });
 
-    // 3. 获取历史消息（最近 10 条，降序取，再翻转为升序）
     const historyRaw = await this.prisma.aIMessage.findMany({
       where: { conversationId: conversation.id },
       orderBy: { createdAt: 'desc' },
@@ -47,10 +44,10 @@ export class AiService {
       content: m.content,
     }));
 
-    // 4. 构建 System Prompt
-    const systemPrompt = this.buildSystemPrompt();
+    // Query real restaurant data from DB
+    const dbContext = await this.buildDbContext(message);
+    const systemPrompt = this.buildSystemPrompt(dbContext);
 
-    // 5. 调用 Claude API (stream)
     try {
       const stream = this.anthropic.messages.stream({
         model: 'claude-sonnet-4-20250514',
@@ -65,14 +62,111 @@ export class AiService {
     }
   }
 
-  private buildSystemPrompt(): string {
-    return `你是一个本地生活服务智能助手。你可以帮助用户：
-- 查找附近的餐厅、商店
-- 推荐美食和商家
-- 查询订单状态
-- 回答关于本地生活服务的问题
+  private async buildDbContext(userMessage: string): Promise<string> {
+    try {
+      // Search shops by name, category, or address keywords
+      const keywords = userMessage
+        .replace(/[？！。，、\.\!\?\,\s]+/g, ' ')
+        .trim()
+        .split(' ')
+        .filter((w) => w.length >= 1);
 
-请用简洁友好的中文回答。如果需要推荐商家，请提供商家名称、评分、人均消费和距离等信息。`;
+      const conditions: any[] = [];
+
+      for (const kw of keywords) {
+        conditions.push(
+          { name: { contains: kw } },
+          { address: { contains: kw } },
+          { category: { name: { contains: kw } } },
+          { products: { some: { name: { contains: kw } } } },
+        );
+      }
+
+      const shops = await this.prisma.shop.findMany({
+        where: {
+          status: 1,
+          ...(conditions.length > 0 ? { OR: conditions } : {}),
+        },
+        include: {
+          category: true,
+          products: { where: { status: 1 }, take: 5, orderBy: { sales: 'desc' } },
+        },
+        take: 10,
+        orderBy: { rating: 'desc' },
+      });
+
+      if (shops.length === 0) {
+        // Fallback: return top-rated shops
+        const topShops = await this.prisma.shop.findMany({
+          where: { status: 1 },
+          include: {
+            category: true,
+            products: { where: { status: 1 }, take: 3, orderBy: { sales: 'desc' } },
+          },
+          take: 8,
+          orderBy: [{ monthlySales: 'desc' }, { rating: 'desc' }],
+        });
+        return this.formatShopData(topShops);
+      }
+
+      return this.formatShopData(shops);
+    } catch (error) {
+      this.logger.error('查询商家数据失败', error);
+      return '';
+    }
+  }
+
+  private formatShopData(shops: any[]): string {
+    if (shops.length === 0) return '';
+
+    const lines = shops.map((shop) => {
+      const products = shop.products
+        ?.map((p: any) => `${p.name}(${Number(p.price)}元)`)
+        .join('、') || '暂无菜品信息';
+
+      return [
+        `- ${shop.name}`,
+        `  地址：${shop.address}`,
+        `  分类：${shop.category?.name || '未分类'}`,
+        `  评分：${Number(shop.rating)}`,
+        `  月售：${shop.monthlySales}单`,
+        `  人均：${Number(shop.minOrder)}元起`,
+        `  配送费：${Number(shop.deliveryFee)}元`,
+        `  营业时间：${shop.businessHours || '09:00-22:00'}`,
+        `  招牌菜：${products}`,
+      ].join('\n');
+    });
+
+    return `\n以下是平台上的真实商家数据，请基于这些数据进行推荐：\n${lines.join('\n\n')}`;
+  }
+
+  private buildSystemPrompt(dbContext: string): string {
+    return `你是"美食达人AI"，一个专业的本地美食推荐助手。你的任务是帮助用户发现好吃的餐厅和美食。
+
+## 你的能力
+- 根据用户需求（菜系、价位、场景、口味）推荐餐厅
+- 介绍餐厅的特色菜品、价格、评分、地址
+- 根据用户的位置推荐附近的商家
+- 回答关于美食和本地生活的问题
+
+## 推荐格式
+当你推荐餐厅时，请用以下结构化格式（每家餐厅用 🍽️ 开头）：
+
+🍽️ **餐厅名称**
+📍 地址：xxx
+💰 人均：xx元
+⭐ 评分：x.x
+🔥 招牌菜：xxx、xxx
+💬 推荐理由：xxx
+
+## 回复规则
+1. 优先推荐数据库中的真实商家，不要编造不存在的餐厅
+2. 推荐理由要具体生动，比如"他家的红烧肉肥而不腻，入口即化"
+3. 每次推荐 2-4 家，信息要准确有用
+4. 如果数据库中没有匹配的商家，如实告知并给出一般性建议
+5. 回答用中文，语气热情友好，像朋友推荐一样自然
+6. 用 emoji 让回复更生动 🍜🍕🥩
+${dbContext}`;
   }
 
   async getHistory(userId: number) {

@@ -1,11 +1,11 @@
 // apps/server/src/modules/ai/ai.controller.ts
-import { Controller, Post, Get, Sse, Body, Param, Logger, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Logger, UseGuards, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { AiService } from './ai.service';
 import { ChatDto } from './dto/chat.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { Observable, from } from 'rxjs';
-import { MessageEvent } from '@nestjs/common';
+import { Readable } from 'stream';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -15,11 +15,11 @@ export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   @Post('chat')
-  @Sse('chat')
   async chat(
     @CurrentUser() user: any,
     @Body() dto: ChatDto,
-  ): Promise<Observable<MessageEvent>> {
+    @Res({ passthrough: true }) res: any,
+  ) {
     try {
       const { stream, conversationId } = await this.aiService.chat(
         user.id,
@@ -27,29 +27,39 @@ export class AiController {
         dto.conversationId,
       );
 
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+
       let fullContent = '';
+      const aiService = this.aiService;
 
-      // Convert Anthropic async iterable stream to Observable<MessageEvent>
-      const asyncIterable = {
-        async *[Symbol.asyncIterator]() {
-          for await (const event of stream) {
-            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-              const chunk = event.delta.text;
-              fullContent += chunk;
-              yield { data: JSON.stringify({ chunk, conversationId }) } as MessageEvent;
+      const readable = new Readable({
+        async read() {
+          try {
+            for await (const event of stream) {
+              if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+                const chunk = event.delta.text;
+                fullContent += chunk;
+                this.push(`data: ${JSON.stringify({ chunk, conversationId })}\n\n`);
+              }
             }
+            await aiService.saveAssistantMessage(conversationId, fullContent);
+            this.push(`data: ${JSON.stringify({ done: true, conversationId })}\n\n`);
+            this.push(null);
+          } catch (err: any) {
+            console.error('AI stream error:', err?.message || err);
+            this.push(`data: ${JSON.stringify({ error: err?.message || 'AI 服务暂时不可用' })}\n\n`);
+            this.push(null);
           }
-          // Save full assistant reply to database
-          await this.aiService.saveAssistantMessage(conversationId, fullContent);
-          // End signal
-          yield { data: JSON.stringify({ done: true, conversationId }) } as MessageEvent;
         },
-      };
+      });
 
-      return from(asyncIterable);
+      readable.pipe(res);
     } catch (error) {
       this.logger.error('AI chat 失败', error);
-      return from([{ data: JSON.stringify({ error: 'AI 服务暂时不可用' }) } as MessageEvent]);
+      res.status(500).json({ code: 500, message: 'AI 服务暂时不可用' });
     }
   }
 

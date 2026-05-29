@@ -13,6 +13,15 @@ export default function CategoryScreen({ navigation, route }: any) {
 
   return (
     <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>分类浏览</Text>
+      </View>
+
+      <View style={styles.content}>
       {/* Left: Category List */}
       <View style={styles.leftPanel}>
         <FlatList
@@ -50,12 +59,21 @@ export default function CategoryScreen({ navigation, route }: any) {
           onEndReachedThreshold={0.3}
         />
       </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, flexDirection: 'row', backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.background },
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  backIcon: { fontSize: 20, color: colors.text },
+  headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
+  content: { flex: 1, flexDirection: 'row' },
   leftPanel: { width: 90, backgroundColor: colors.surface },
   catItem: { paddingVertical: spacing.md, alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   catItemActive: { backgroundColor: colors.background, borderLeftWidth: 3, borderLeftColor: colors.primary },

@@ -139,7 +139,7 @@ export const browseHistoryApi = {
   clear: () => api.delete('/browse-history'),
 };
 
-// SSE Stream Helper
+// SSE Stream Helper — uses response.text() (React Native fetch lacks ReadableStream)
 export const createChatStream = async (
   message: string,
   conversationId: number | undefined,
@@ -147,35 +147,79 @@ export const createChatStream = async (
   onDone: (conversationId: number) => void,
   onError: (error: string) => void,
 ) => {
-  const token = storage.getString('accessToken');
-  const response = await fetch('http://10.0.2.2:3000/api/v1/ai/chat', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ message, conversationId }),
-  });
+  let token = storage.getString('accessToken');
 
-  const reader = (response as any).body?.getReader();
-  const decoder = new (globalThis as any).TextDecoder();
+  const doFetch = async (accessToken: string) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    try {
+      const res = await fetch('http://10.0.2.2:3000/api/v1/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ message, conversationId }),
+        signal: controller.signal,
+      });
+      return res;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
 
-  if (!reader) {
-    onError('Failed to create stream');
-    return;
-  }
+  try {
+    let response = await doFetch(token || '');
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+    // Auto-refresh token on 401
+    if (response.status === 401) {
+      const refreshToken = storage.getString('refreshToken');
+      if (refreshToken) {
+        try {
+          const refreshRes = await fetch('http://10.0.2.2:3000/api/v1/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          });
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            const newToken = refreshData.data?.accessToken;
+            if (newToken) {
+              storage.set('accessToken', newToken);
+              token = newToken;
+              response = await doFetch(newToken);
+            }
+          }
+        } catch {
+          // refresh failed
+        }
+      }
 
-    const text = decoder.decode(value);
+      if (response.status === 401) {
+        onError('登录已过期，请重新登录');
+        return;
+      }
+    }
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.log('[AI] Error response:', response.status, errText);
+      onError(`请求失败: ${response.status}`);
+      return;
+    }
+
+    const text = await response.text();
+    console.log('[AI] Response length:', text.length);
+
+    let foundData = false;
     const lines = text.split('\n');
 
     for (const line of lines) {
-      if (line.startsWith('data: ')) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('data: ')) {
+        foundData = true;
         try {
-          const data = JSON.parse(line.slice(6));
+          const data = JSON.parse(trimmed.slice(6));
           if (data.chunk) {
             onChunk(data.chunk);
           } else if (data.done) {
@@ -184,9 +228,17 @@ export const createChatStream = async (
             onError(data.error);
           }
         } catch (e) {
-          // Ignore parse errors
+          console.log('[AI] Parse error:', trimmed);
         }
       }
     }
+
+    if (!foundData) {
+      console.log('[AI] No SSE data found. Raw response:', text.slice(0, 500));
+      onError('AI 未返回有效数据');
+    }
+  } catch (e: any) {
+    const msg = e?.name === 'AbortError' ? '请求超时，请重试' : (e?.message || '网络连接失败');
+    onError(msg);
   }
 };

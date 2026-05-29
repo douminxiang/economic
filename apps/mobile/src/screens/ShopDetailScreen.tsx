@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
-import { useShopDetail } from '../hooks';
+import { MapView, Marker } from 'react-native-amap3d';
+import { useShopDetail, useCart } from '../hooks';
+import { useCartStore } from '../stores/cartStore';
 import { colors, spacing, fontSize, borderRadius } from '../theme/tokens';
 import { Skeleton } from '../components/Skeleton';
 import { ErrorView } from '../components/ErrorView';
@@ -39,6 +41,8 @@ const ShopDetailSkeleton = () => (
 export default function ShopDetailScreen({ navigation, route }: any) {
   const { id } = route.params;
   const { data, isLoading, refetch, isRefetching } = useShopDetail(id);
+  const { data: cartData } = useCart();
+  const cartItemCount = useCartStore((s) => s.itemCount);
   const [activeTab, setActiveTab] = useState<'menu' | 'reviews' | 'info'>('menu');
   const [error, setError] = useState<string | null>(null);
   const shop = data?.data;
@@ -91,8 +95,38 @@ export default function ShopDetailScreen({ navigation, route }: any) {
           ))}
         </View>
 
-        {activeTab === 'menu' && shop.products?.map((group: any) => (
-          <View key={group.categoryName}>
+        {activeTab === 'menu' && (
+          <View style={styles.mapSection}>
+            <View style={styles.mapHeader}>
+              <Text style={styles.mapTitle}>商家位置</Text>
+              <TouchableOpacity
+                style={styles.routeButton}
+                onPress={() => navigation.navigate('Route', { shop })}
+              >
+                <Text style={styles.routeButtonText}>查看路线</Text>
+              </TouchableOpacity>
+            </View>
+            <MapView
+              key={`shop-${shop.id}`}
+              style={styles.map}
+              initialCameraPosition={{
+                target: { latitude: Number(shop.latitude), longitude: Number(shop.longitude) },
+                zoom: 15,
+              }}
+            >
+              <Marker
+                position={{ latitude: Number(shop.latitude), longitude: Number(shop.longitude) }}
+              />
+            </MapView>
+            <View style={styles.mapAddress}>
+              <Text style={styles.mapAddressIcon}>📍</Text>
+              <Text style={styles.mapAddressText}>{shop.address}</Text>
+            </View>
+          </View>
+        )}
+
+        {activeTab === 'menu' && shop.products?.map((group: any, groupIdx: number) => (
+          <View key={`${group.categoryName}-${groupIdx}`}>
             <Text style={styles.menuCategory}>{group.categoryName}</Text>
             {group.products.map((product: any) => (
               <TouchableOpacity key={product.id} style={styles.productRow} onPress={() => navigation.navigate('ProductDetail', { id: product.id })}>
@@ -121,9 +155,14 @@ export default function ShopDetailScreen({ navigation, route }: any) {
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <View style={styles.cartIcon}>
+        <TouchableOpacity style={styles.cartIcon} onPress={() => navigation.navigate('Home', { screen: 'Cart' })}>
           <Text style={styles.cartIconText}>🛒</Text>
-        </View>
+          {cartItemCount > 0 && (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{cartItemCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
         <View style={styles.bottomInfo}>
           <Text style={styles.bottomPrice}>¥0.00</Text>
           <Text style={styles.bottomMeta}>另需配送费¥{shop.deliveryFee}</Text>
@@ -167,9 +206,20 @@ const styles = StyleSheet.create({
   bottomBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.text, height: 56, paddingHorizontal: spacing.md },
   cartIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
   cartIconText: { fontSize: 20 },
+  cartBadge: { position: 'absolute', top: -2, right: -2, backgroundColor: '#FF3B30', borderRadius: 10, minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
+  cartBadgeText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
   bottomInfo: { flex: 1, marginLeft: spacing.md },
   bottomPrice: { color: colors.white, fontSize: fontSize.lg, fontWeight: '700' },
   bottomMeta: { color: '#FFFFFF99', fontSize: fontSize.xs },
   bottomBtn: { backgroundColor: colors.textLight, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.md },
   bottomBtnText: { color: colors.white, fontSize: fontSize.sm, fontWeight: '600' },
+  mapSection: { backgroundColor: colors.surface, marginBottom: spacing.sm },
+  mapHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md },
+  mapTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
+  routeButton: { backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.full },
+  routeButtonText: { color: colors.white, fontSize: fontSize.sm, fontWeight: '600' },
+  map: { width: '100%', height: 180 },
+  mapAddress: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  mapAddressIcon: { fontSize: fontSize.md },
+  mapAddressText: { flex: 1, fontSize: fontSize.sm, color: colors.textSecondary },
 });

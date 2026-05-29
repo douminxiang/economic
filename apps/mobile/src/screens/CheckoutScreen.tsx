@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
-import { useCart, useCreateOrder, usePayOrder, useAddressList } from '../hooks';
+import { useCart, useCreateOrder, useAddressList } from '../hooks';
 import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
 
 export default function CheckoutScreen({ navigation }: any) {
@@ -10,7 +10,6 @@ export default function CheckoutScreen({ navigation }: any) {
   const addresses = addrData?.data || [];
   const defaultAddr = addresses.find((a: any) => a.isDefault) || addresses[0];
   const createMut = useCreateOrder();
-  const payMut = usePayOrder();
   const [remark, setRemark] = useState('');
 
   const handleSubmit = () => {
@@ -23,16 +22,7 @@ export default function CheckoutScreen({ navigation }: any) {
       {
         onSuccess: (res: any) => {
           const order = res.data;
-          payMut.mutate(
-            { id: order.id },
-            {
-              onSuccess: () => {
-                Alert.alert('提示', '支付成功', [
-                  { text: '查看订单', onPress: () => navigation.replace('OrderDetail', { id: order.id }) },
-                ]);
-              },
-            },
-          );
+          navigation.navigate('Payment', { orderId: order.id, amount: order.payAmount });
         },
       },
     );
@@ -56,7 +46,10 @@ export default function CheckoutScreen({ navigation }: any) {
 
       <ScrollView style={styles.content}>
         {/* Address */}
-        <TouchableOpacity style={styles.addressCard} onPress={() => navigation.navigate('Address')}>
+        <TouchableOpacity
+          style={styles.addressCard}
+          onPress={() => defaultAddr ? navigation.navigate('Address') : navigation.navigate('AddressPicker')}
+        >
           <Text style={styles.addressIcon}>📍</Text>
           {defaultAddr ? (
             <View style={styles.addressInfo}>
@@ -64,7 +57,7 @@ export default function CheckoutScreen({ navigation }: any) {
               <Text style={styles.addressDetail}>{defaultAddr.province}{defaultAddr.city}{defaultAddr.district}{defaultAddr.detail}</Text>
             </View>
           ) : (
-            <Text style={styles.addressEmpty}>请选择收货地址</Text>
+            <Text style={styles.addressEmpty}>+ 请选择/添加收货地址</Text>
           )}
           <Text style={styles.addressArrow}>›</Text>
         </TouchableOpacity>

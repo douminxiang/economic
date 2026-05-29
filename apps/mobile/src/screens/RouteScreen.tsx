@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MapView, Marker, Polyline } from 'react-native-amap3d';
 import { Geolocation } from 'react-native-amap-geolocation';
 import { useDirection } from '../hooks/useAmap';
-import { colors, fontSize } from '../theme/tokens';
+import { initAmapGeolocation } from '../utils/amapInit';
+import { colors, fontSize, spacing, borderRadius } from '../theme/tokens';
 
 const MODES = [
   { key: 'driving', label: '驾车', icon: '🚗' },
@@ -11,16 +12,31 @@ const MODES = [
   { key: 'bicycling', label: '骑行', icon: '🚲' },
 ];
 
+const DEFAULT_LOCATION = { latitude: 30.2741, longitude: 120.1551 };
+
 export default function RouteScreen({ route, navigation }: any) {
   const { shop } = route.params;
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [location, setLocation] = useState<{ latitude: number; longitude: number }>(DEFAULT_LOCATION);
   const [mode, setMode] = useState('driving');
 
   useEffect(() => {
-    Geolocation.getCurrentPosition(
-      (position) => setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
-      () => setLocation({ latitude: 30.2741, longitude: 120.1551 }),
-    );
+    let mounted = true;
+    async function initLocation() {
+      try {
+        await initAmapGeolocation();
+        if (!mounted) return;
+        Geolocation.getCurrentPosition(
+          (position) => {
+            if (mounted) setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+          },
+          () => {},
+        );
+      } catch (e) {
+        console.warn('Location error:', e);
+      }
+    }
+    initLocation();
+    return () => { mounted = false; };
   }, []);
 
   const origin = location ? `${location.longitude},${location.latitude}` : '';
@@ -41,20 +57,18 @@ export default function RouteScreen({ route, navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{shop.name}</Text>
-      </View>
+      {/* Floating back button */}
+      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <Text style={styles.backText}>←</Text>
+      </TouchableOpacity>
+      <Text style={styles.headerTitle} numberOfLines={1}>{shop.name}</Text>
 
       {/* Map */}
       {location && (
         <MapView style={styles.map} initialCameraPosition={{ target: location, zoom: 13 }}>
           <Marker position={location} />
           <Marker
-            position={{ latitude: shop.latitude, longitude: shop.longitude }}
+            position={{ latitude: Number(shop.latitude), longitude: Number(shop.longitude) }}
           />
           {polylinePoints.length > 0 && (
             <Polyline
@@ -96,13 +110,18 @@ export default function RouteScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    height: 48, padding: 16, backgroundColor: colors.surface,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+  backBtn: {
+    position: 'absolute', top: 50, left: 16, width: 36, height: 36,
+    borderRadius: 18, backgroundColor: colors.overlayDark,
+    justifyContent: 'center', alignItems: 'center', zIndex: 10,
   },
-  backIcon: { fontSize: 20, color: colors.text },
-  headerTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.text, flex: 1 },
+  backText: { color: colors.white, fontSize: fontSize.lg },
+  headerTitle: {
+    position: 'absolute', top: 54, left: 60, right: 16, zIndex: 10,
+    fontSize: fontSize.md, fontWeight: '600', color: colors.white,
+    backgroundColor: colors.overlayDark, borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm, paddingVertical: 4, overflow: 'hidden',
+  },
   map: { flex: 1 },
   bottomPanel: {
     backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16,

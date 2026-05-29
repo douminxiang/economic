@@ -33,8 +33,8 @@ export default function AddressScreen({ navigation }: any) {
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.contactName}>{item.contactName}</Text>
-              <Text style={styles.contactPhone}>{item.contactPhone}</Text>
+              <Text style={styles.contactName}>{item.name}</Text>
+              <Text style={styles.contactPhone}>{item.phone}</Text>
               {item.isDefault === 1 && <Text style={styles.defaultBadge}>默认</Text>}
             </View>
             <Text style={styles.address}>{item.province}{item.city}{item.district}{item.detail}</Text>

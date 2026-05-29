@@ -36,10 +36,15 @@ export default function SearchScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Search Input */}
-      <View style={styles.inputRow}>
-        <TextInput style={styles.input} placeholder="搜索商家或美食" value={keyword} onChangeText={setKeyword} onSubmitEditing={() => doSearch(keyword)} autoFocus />
-        <TouchableOpacity onPress={() => doSearch(keyword)}><Text style={styles.searchBtn}>搜索</Text></TouchableOpacity>
+      {/* Header with back button */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.inputRow}>
+          <TextInput style={styles.input} placeholder="搜索商家或美食" value={keyword} onChangeText={setKeyword} onSubmitEditing={() => doSearch(keyword)} autoFocus />
+          <TouchableOpacity onPress={() => doSearch(keyword)}><Text style={styles.searchBtn}>搜索</Text></TouchableOpacity>
+        </View>
       </View>
 
       {!searchText ? (
@@ -75,7 +80,7 @@ export default function SearchScreen({ navigation }: any) {
           data={shops}
           keyExtractor={(item: any) => String(item.id)}
           renderItem={({ item }: any) => (
-            <TouchableOpacity style={styles.resultCard} onPress={() => navigation.navigate('ShopDetail', { id: item.id })}>
+            <TouchableOpacity style={styles.resultCard} onPress={() => navigation.navigate('MapMain', { selectedShop: item })}>
               <Text style={styles.resultName}>{item.name}</Text>
               <Text style={styles.resultMeta}>月售{item.monthlySales} · ⭐{Number(item.rating).toFixed(1)}</Text>
             </TouchableOpacity>
@@ -89,7 +94,13 @@ export default function SearchScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  inputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, margin: spacing.md, borderRadius: borderRadius.lg, paddingHorizontal: spacing.md, ...shadows.sm },
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.surface, paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  backIcon: { fontSize: 20, color: colors.text },
+  inputRow: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.background, borderRadius: borderRadius.lg, paddingHorizontal: spacing.md },
   input: { flex: 1, height: 44, fontSize: fontSize.md },
   searchBtn: { color: colors.primary, fontSize: fontSize.md, fontWeight: '600', paddingLeft: spacing.md },
   suggestions: { padding: spacing.md },

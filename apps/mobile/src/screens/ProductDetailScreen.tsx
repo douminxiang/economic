@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useProductDetail } from '../hooks';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { useProductDetail, useAddToCart } from '../hooks';
+import { useCartStore } from '../stores/cartStore';
 import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
 
 export default function ProductDetailScreen({ navigation, route }: any) {
   const { id } = route.params;
   const { data, isLoading } = useProductDetail(id);
+  const addToCart = useAddToCart();
+  const setItemCount = useCartStore((s) => s.setItemCount);
   const [quantity, setQuantity] = useState(1);
   const product = data?.data;
 
@@ -58,8 +61,25 @@ export default function ProductDetailScreen({ navigation, route }: any) {
             <Text style={[styles.qtyBtnText, styles.qtyBtnPlusText]}>+</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.addCartBtn}>
-          <Text style={styles.addCartText}>🛒 加入购物车</Text>
+        <TouchableOpacity
+          style={[styles.addCartBtn, addToCart.isPending && { opacity: 0.6 }]}
+          disabled={addToCart.isPending}
+          onPress={() => {
+            addToCart.mutate(
+              { productId: product.id, quantity },
+              {
+                onSuccess: () => {
+                  Alert.alert('提示', '已加入购物车');
+                  setItemCount(quantity);
+                },
+                onError: () => Alert.alert('提示', '加入购物车失败'),
+              },
+            );
+          }}
+        >
+          <Text style={styles.addCartText}>
+            {addToCart.isPending ? '加入中...' : '🛒 加入购物车'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
