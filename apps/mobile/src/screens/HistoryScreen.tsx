@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, FlatList, Text, TouchableOpacity, Image, StyleSheet, Alert } from 'react-native';
-import { colors, spacing, borderRadius, fontSize } from '../theme/tokens';
+import { useTranslation } from 'react-i18next';
+import { spacing, borderRadius, fontSize } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 import { browseHistoryApi } from '../services/api';
 import { useNavigation } from '@react-navigation/native';
 
 export default function HistoryScreen() {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'today' | 'week' | 'older'>('today');
   const [items, setItems] = useState<any[]>([]);
   const navigation = useNavigation();
@@ -14,16 +18,16 @@ export default function HistoryScreen() {
       const res = await browseHistoryApi.list(activeTab);
       setItems(res.data || []);
     } catch {
-      Alert.alert('错误', '加载浏览历史失败，请重试');
+      Alert.alert(t('common.error'), t('history.loadFailed'));
     }
   }, [activeTab]);
 
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
   const handleClear = () => {
-    Alert.alert('清空历史', '确定要清空所有浏览历史吗？', [
-      { text: '取消' },
-      { text: '清空', style: 'destructive', onPress: async () => {
+    Alert.alert(t('history.clearAll'), t('history.clearConfirm'), [
+      { text: t('common.cancel') },
+      { text: t('history.clearAll'), style: 'destructive', onPress: async () => {
         await browseHistoryApi.clear();
         setItems([]);
       }},
@@ -49,15 +53,19 @@ export default function HistoryScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>← 返回</Text>
+          <Text style={styles.back}>← {t('common.back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>浏览历史</Text>
+        <Text style={styles.title}>{t('history.title')}</Text>
         <TouchableOpacity onPress={handleClear}>
-          <Text style={styles.clearText}>清空</Text>
+          <Text style={styles.clearText}>{t('history.clearAll')}</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.tabs}>
-        {([['today', '今天'], ['week', '本周'], ['older', '更早']] as const).map(([key, label]) => (
+        {([
+          ['today', t('history.today')],
+          ['week', t('history.thisWeek')],
+          ['older', t('history.earlier')],
+        ] as const).map(([key, label]) => (
           <TouchableOpacity key={key} style={[styles.tab, activeTab === key && styles.tabActive]} onPress={() => setActiveTab(key)}>
             <Text style={[styles.tabText, activeTab === key && styles.tabTextActive]}>{label}</Text>
           </TouchableOpacity>

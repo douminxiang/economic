@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { REGIONS } from '../data/regions';
-import { colors, fontSize, spacing } from '../theme/tokens';
+import { fontSize, spacing } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 
 interface RegionPickerProps {
   visible: boolean;
@@ -13,6 +15,8 @@ interface RegionPickerProps {
 }
 
 export function RegionPicker({ visible, onClose, onConfirm, initialProvince, initialCity, initialDistrict }: RegionPickerProps) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
   const [step, setStep] = useState<'province' | 'city' | 'district'>('province');
   const [selectedProvince, setSelectedProvince] = useState(initialProvince || '');
   const [selectedCity, setSelectedCity] = useState(initialCity || '');
@@ -44,7 +48,7 @@ export function RegionPicker({ visible, onClose, onConfirm, initialProvince, ini
     resetAndClose();
   };
 
-  const headerTitle = step === 'province' ? '选择省份' : step === 'city' ? '选择城市' : '选择区县';
+  const getHeaderTitle = () => step === 'province' ? t('region.selectProvince') : step === 'city' ? t('region.selectCity') : t('region.selectDistrict');
 
   const listData = step === 'province'
     ? REGIONS.map((p) => p.name)
@@ -59,12 +63,12 @@ export function RegionPicker({ visible, onClose, onConfirm, initialProvince, ini
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={resetAndClose}>
-              <Text style={styles.closeText}>取消</Text>
+              <Text style={styles.closeText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>{headerTitle}</Text>
+            <Text style={styles.headerTitle}>{getHeaderTitle()}</Text>
             {canConfirm && (
               <TouchableOpacity onPress={handleConfirm}>
-                <Text style={styles.doneText}>确定</Text>
+                <Text style={styles.doneText}>{t('common.confirm')}</Text>
               </TouchableOpacity>
             )}
             {!canConfirm && <View style={{ width: 40 }} />}
@@ -74,20 +78,20 @@ export function RegionPicker({ visible, onClose, onConfirm, initialProvince, ini
           <View style={styles.breadcrumb}>
             <TouchableOpacity onPress={() => { setStep('province'); setSelectedCity(''); setSelectedDistrict(''); }}>
               <Text style={[styles.breadItem, step === 'province' && styles.breadActive, !selectedProvince && styles.breadPlaceholder]}>
-                {selectedProvince || '选择省份'}
+                {selectedProvince || t('region.selectProvince')}
               </Text>
             </TouchableOpacity>
             <Text style={styles.breadSep}> / </Text>
             <TouchableOpacity onPress={() => { setStep('city'); setSelectedDistrict(''); }}>
               <Text style={[styles.breadItem, step === 'city' && styles.breadActive, !selectedCity && styles.breadPlaceholder]}>
-                {selectedCity || '选择城市'}
+                {selectedCity || t('region.selectCity')}
               </Text>
             </TouchableOpacity>
             {districts.length > 0 && (
               <>
                 <Text style={styles.breadSep}> / </Text>
                 <Text style={[styles.breadItem, step === 'district' && styles.breadActive, !selectedDistrict && styles.breadPlaceholder]}>
-                  {selectedDistrict || '选择区县'}
+                  {selectedDistrict || t('region.selectDistrict')}
                 </Text>
               </>
             )}

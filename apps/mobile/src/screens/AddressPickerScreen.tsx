@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useCreateAddress, useUpdateAddress } from '../hooks/useAddress';
 import { RegionPicker } from '../components/RegionPicker';
-import { colors, fontSize, spacing, borderRadius } from '../theme/tokens';
+import { fontSize, spacing, borderRadius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function AddressPickerScreen({ route, navigation }: any) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
   const editingAddress = route?.params?.address;
   const [name, setName] = useState(editingAddress?.name || '');
   const [phone, setPhone] = useState(editingAddress?.phone || '');
@@ -18,31 +22,31 @@ export default function AddressPickerScreen({ route, navigation }: any) {
   const createMutation = useCreateAddress();
   const updateMutation = useUpdateAddress();
 
-  const regionText = [province, city, district].filter(Boolean).join(' ') || '请选择省/市/区';
+  const regionText = [province, city, district].filter(Boolean).join(' ') || t('address.selectRegion');
 
   const handleSave = () => {
     if (!name.trim()) {
-      Alert.alert('提示', '请输入联系人姓名');
+      Alert.alert(t('common.tip'), t('address.enterContactName'));
       return;
     }
     if (name.trim().length > 50) {
-      Alert.alert('提示', '联系人姓名不能超过50个字符');
+      Alert.alert(t('common.tip'), t('address.contactNameTooLong'));
       return;
     }
     if (!phone.trim()) {
-      Alert.alert('提示', '请输入联系电话');
+      Alert.alert(t('common.tip'), t('address.enterPhone'));
       return;
     }
     if (phone.trim().length > 20) {
-      Alert.alert('提示', '联系电话不能超过20个字符');
+      Alert.alert(t('common.tip'), t('address.phoneTooLong'));
       return;
     }
     if (!province || !city) {
-      Alert.alert('提示', '请选择省和市');
+      Alert.alert(t('common.tip'), t('address.selectProvinceCity'));
       return;
     }
     if (!detail.trim()) {
-      Alert.alert('提示', '请填写详细地址');
+      Alert.alert(t('common.tip'), t('address.enterDetailAddress'));
       return;
     }
 
@@ -63,13 +67,13 @@ export default function AddressPickerScreen({ route, navigation }: any) {
         { id: editingAddress.id, data },
         {
           onSuccess: () => navigation.goBack(),
-          onError: (e: any) => Alert.alert('保存失败', e?.message || '请稍后重试'),
+          onError: (e: any) => Alert.alert(t('address.saveFailed'), e?.message || t('address.pleaseRetry')),
         },
       );
     } else {
       createMutation.mutate(data, {
         onSuccess: () => navigation.goBack(),
-        onError: (e: any) => Alert.alert('保存失败', e?.message || '请稍后重试'),
+        onError: (e: any) => Alert.alert(t('address.saveFailed'), e?.message || t('address.pleaseRetry')),
       });
     }
   };
@@ -80,28 +84,28 @@ export default function AddressPickerScreen({ route, navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{editingAddress ? '编辑地址' : '新增地址'}</Text>
+        <Text style={styles.headerTitle}>{editingAddress ? t('address.editAddress') : t('address.addAddress')}</Text>
       </View>
 
       <View style={styles.form}>
         <View style={styles.formRow}>
-          <Text style={styles.label}>联系人</Text>
+          <Text style={styles.label}>{t('address.contact')}</Text>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="收件人姓名"
+            placeholder={t('address.contactPlaceholder')}
             placeholderTextColor={colors.textLight}
             maxLength={50}
           />
         </View>
         <View style={styles.formRow}>
-          <Text style={styles.label}>电话</Text>
+          <Text style={styles.label}>{t('address.phone')}</Text>
           <TextInput
             style={styles.input}
             value={phone}
             onChangeText={setPhone}
-            placeholder="手机号码"
+            placeholder={t('address.phonePlaceholder')}
             placeholderTextColor={colors.textLight}
             keyboardType="phone-pad"
             maxLength={20}
@@ -109,7 +113,7 @@ export default function AddressPickerScreen({ route, navigation }: any) {
         </View>
 
         <TouchableOpacity style={styles.formRow} onPress={() => setRegionVisible(true)}>
-          <Text style={styles.label}>所在地区</Text>
+          <Text style={styles.label}>{t('address.region')}</Text>
           <View style={[styles.input, styles.regionInput]}>
             <Text style={[styles.regionText, !province && { color: colors.textLight }]}>{regionText}</Text>
             <Text style={styles.regionArrow}>›</Text>
@@ -117,19 +121,19 @@ export default function AddressPickerScreen({ route, navigation }: any) {
         </TouchableOpacity>
 
         <View style={styles.formRow}>
-          <Text style={styles.label}>详细地址</Text>
+          <Text style={styles.label}>{t('address.detailAddress')}</Text>
           <TextInput
             style={styles.input}
             value={detail}
             onChangeText={setDetail}
-            placeholder="街道、小区、楼栋号"
+            placeholder={t('address.detailPlaceholder')}
             placeholderTextColor={colors.textLight}
             maxLength={200}
           />
         </View>
 
         <TouchableOpacity style={styles.toggleRow} onPress={() => setIsDefault(!isDefault)}>
-          <Text style={styles.toggleLabel}>设为默认地址</Text>
+          <Text style={styles.toggleLabel}>{t('address.setDefault')}</Text>
           <View style={[styles.toggle, isDefault && styles.toggleActive]}>
             <View style={[styles.toggleDot, isDefault && styles.toggleDotActive]} />
           </View>
@@ -142,7 +146,7 @@ export default function AddressPickerScreen({ route, navigation }: any) {
         onPress={handleSave}
       >
         <Text style={styles.saveButtonText}>
-          {createMutation.isPending || updateMutation.isPending ? '保存中...' : '保存地址'}
+          {createMutation.isPending || updateMutation.isPending ? t('common.saving') : t('address.saveAddress')}
         </Text>
       </TouchableOpacity>
 
@@ -160,39 +164,22 @@ export default function AddressPickerScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    height: 56, paddingHorizontal: 16, backgroundColor: colors.surface,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 56, paddingHorizontal: 16, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   backIcon: { fontSize: 22, color: colors.text },
   headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
   form: { padding: 16, backgroundColor: colors.surface, gap: 14 },
   formRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   label: { width: 70, fontSize: fontSize.sm, color: colors.text },
-  input: {
-    flex: 1, height: 44, backgroundColor: colors.background, borderRadius: borderRadius.sm,
-    paddingHorizontal: 12, fontSize: fontSize.sm, borderWidth: 1, borderColor: colors.border,
-    color: colors.text,
-  },
+  input: { flex: 1, height: 44, backgroundColor: colors.background, borderRadius: borderRadius.sm, paddingHorizontal: 12, fontSize: fontSize.sm, borderWidth: 1, borderColor: colors.border, color: colors.text },
   regionInput: { justifyContent: 'space-between', alignItems: 'center' },
   regionText: { fontSize: fontSize.sm, color: colors.text },
   regionArrow: { fontSize: 18, color: colors.textLight },
-  toggleRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
   toggleLabel: { fontSize: fontSize.sm, color: colors.text },
-  toggle: {
-    width: 44, height: 24, borderRadius: 12, backgroundColor: colors.border,
-    padding: 2, justifyContent: 'center',
-  },
+  toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: colors.border, padding: 2, justifyContent: 'center' },
   toggleActive: { backgroundColor: colors.primary, alignItems: 'flex-end' },
   toggleDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFF' },
   toggleDotActive: {},
-  saveButton: {
-    margin: 16, padding: 16, backgroundColor: colors.primary, borderRadius: 24,
-    alignItems: 'center',
-  },
+  saveButton: { margin: 16, padding: 16, backgroundColor: colors.primary, borderRadius: 24, alignItems: 'center' },
   saveButtonText: { color: '#FFF', fontSize: fontSize.md, fontWeight: '600' },
 });

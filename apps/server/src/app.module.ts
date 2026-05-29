@@ -14,6 +14,10 @@ import { ReviewModule } from './modules/review/review.module';
 import { FavoriteModule } from './modules/favorite/favorite.module';
 import { AiModule } from './modules/ai/ai.module';
 import { BrowseHistoryModule } from './modules/browse-history/browse-history.module';
+import { UploadModule } from './modules/upload/upload.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { PaymentModule } from './modules/payment/payment.module';
+import { EventsModule } from './modules/events/events.module';
 
 @Module({
   imports: [
@@ -32,6 +36,10 @@ import { BrowseHistoryModule } from './modules/browse-history/browse-history.mod
     FavoriteModule,
     AiModule,
     BrowseHistoryModule,
+    UploadModule,
+    AnalyticsModule,
+    PaymentModule,
+    EventsModule,
   ],
 })
 export class AppModule {}

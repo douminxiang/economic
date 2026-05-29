@@ -1,14 +1,18 @@
-import React, { useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, Animated } from 'react-native';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, Animated, TouchableOpacity } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useStore } from 'zustand';
 import { ChatBubble } from '../components/ai/ChatBubble';
 import { QuickQuestions } from '../components/ai/QuickQuestions';
 import { ChatInput } from '../components/ai/ChatInput';
 import { useAIStore, AIMessage } from '../stores/aiStore';
 import { createChatStream, shopApi } from '../services/api';
-import { colors, spacing, fontSize, borderRadius } from '../theme/tokens';
+import { spacing, fontSize, borderRadius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function AIScreen({ navigation }: any) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
   const scrollRef = useRef<ScrollView>(null);
   const headerOpacity = useRef(new Animated.Value(0)).current;
 
@@ -18,9 +22,11 @@ export default function AIScreen({ navigation }: any) {
   const addUserMessage = useStore(useAIStore, (s) => s.addUserMessage);
   const addAssistantMessage = useStore(useAIStore, (s) => s.addAssistantMessage);
   const updateLastAssistantMessage = useStore(useAIStore, (s) => s.updateLastAssistantMessage);
+  const updateLastAssistantThinking = useStore(useAIStore, (s) => s.updateLastAssistantThinking);
   const setStreaming = useStore(useAIStore, (s) => s.setStreaming);
   const setCurrentConversation = useStore(useAIStore, (s) => s.setCurrentConversation);
   const clearMessages = useStore(useAIStore, (s) => s.clearMessages);
+  const [thinkingEnabled, setThinkingEnabled] = useState(false);
 
   useEffect(() => {
     Animated.timing(headerOpacity, { toValue: 1, duration: 600, useNativeDriver: true }).start();
@@ -31,8 +37,8 @@ export default function AIScreen({ navigation }: any) {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages]);
 
-  const handleSend = useCallback(async (content: string) => {
-    addUserMessage(content);
+  const handleSend = useCallback(async (content: string, imageUrl?: string) => {
+    addUserMessage(content, imageUrl);
     setStreaming(true);
 
     let assistantContent = '';
@@ -50,11 +56,19 @@ export default function AIScreen({ navigation }: any) {
         setStreaming(false);
       },
       (error) => {
-        updateLastAssistantMessage(`抱歉，出了点问题：${error}`);
+        updateLastAssistantMessage(`${t('ai.errorMessage')}${error}`);
         setStreaming(false);
       },
+      (thinkingChunk) => {
+        updateLastAssistantThinking(thinkingChunk);
+      },
+      thinkingEnabled,
+      (searchResults) => {
+        useAIStore.getState().setSearchResults(searchResults);
+      },
+      imageUrl,
     );
-  }, [currentConversationId]);
+  }, [currentConversationId, thinkingEnabled]);
 
   const handleRestaurantPress = useCallback(async (name: string) => {
     try {
@@ -83,11 +97,22 @@ export default function AIScreen({ navigation }: any) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.headerDot} />
-          <Text style={styles.headerTitle}>美食达人AI</Text>
+          <Text style={styles.headerTitle}>{t('ai.title')}</Text>
         </View>
-        {messages.length > 0 && (
-          <Text style={styles.newChatBtn} onPress={clearMessages}>新对话</Text>
-        )}
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={[styles.thinkingToggleBtn, thinkingEnabled && styles.thinkingToggleBtnActive]}
+            onPress={() => setThinkingEnabled(!thinkingEnabled)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.thinkingToggleBtnText, thinkingEnabled && styles.thinkingToggleBtnTextActive]}>
+              🧠
+            </Text>
+          </TouchableOpacity>
+          {messages.length > 0 && (
+            <Text style={styles.newChatBtn} onPress={clearMessages}>{t('ai.newChat')}</Text>
+          )}
+        </View>
       </View>
 
       <ScrollView
@@ -100,21 +125,21 @@ export default function AIScreen({ navigation }: any) {
             <View style={styles.avatarCircle}>
               <Text style={styles.avatarEmoji}>🤖</Text>
             </View>
-            <Text style={styles.welcomeTitle}>美食达人AI</Text>
-            <Text style={styles.welcomeSubtitle}>告诉我你想吃什么，我来帮你找好店</Text>
+            <Text style={styles.welcomeTitle}>{t('ai.title')}</Text>
+            <Text style={styles.welcomeSubtitle}>{t('ai.welcomeSubtitle')}</Text>
 
             <View style={styles.featureRow}>
               <View style={styles.featureCard}>
                 <Text style={styles.featureIcon}>🔍</Text>
-                <Text style={styles.featureText}>智能搜索</Text>
+                <Text style={styles.featureText}>{t('ai.smartSearch')}</Text>
               </View>
               <View style={styles.featureCard}>
                 <Text style={styles.featureIcon}>⭐</Text>
-                <Text style={styles.featureText}>精选推荐</Text>
+                <Text style={styles.featureText}>{t('ai.curatedRec')}</Text>
               </View>
               <View style={styles.featureCard}>
                 <Text style={styles.featureIcon}>📍</Text>
-                <Text style={styles.featureText}>附近好店</Text>
+                <Text style={styles.featureText}>{t('ai.nearbyShops')}</Text>
               </View>
             </View>
 
@@ -127,6 +152,9 @@ export default function AIScreen({ navigation }: any) {
             key={item.id}
             role={item.role}
             content={item.content}
+            thinkingContent={item.thinkingContent}
+            imageUrl={item.imageUrl}
+            searchResults={item.searchResults}
             onRestaurantPress={handleRestaurantPress}
           />
         ))}
@@ -160,9 +188,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
   headerTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
   newChatBtn: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '500' },
+  thinkingToggleBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  thinkingToggleBtnActive: {
+    backgroundColor: '#FFF3ED',
+    borderColor: '#FF6B35',
+  },
+  thinkingToggleBtnText: {
+    fontSize: 16,
+  },
+  thinkingToggleBtnTextActive: {
+    fontSize: 16,
+  },
   listContent: { paddingBottom: spacing.md },
   welcomeContainer: { paddingTop: spacing.xl, alignItems: 'center' },
   avatarCircle: {

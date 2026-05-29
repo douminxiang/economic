@@ -11,6 +11,7 @@ interface AuthState {
   isLoading: boolean;
   login: (phone: string, password: string) => Promise<void>;
   register: (phone: string, password: string, nickname?: string) => Promise<void>;
+  smsLogin: (phone: string, code: string) => Promise<void>;
   logout: () => void;
   loadUser: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
@@ -39,6 +40,20 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     try {
       const res: any = await api.post('/auth/register', { phone, password, nickname });
+      const { accessToken, refreshToken, user } = res.data;
+      storage.set('accessToken', accessToken);
+      storage.set('refreshToken', refreshToken);
+      set({ user, isAuthenticated: true, isLoading: false });
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
+  smsLogin: async (phone, code) => {
+    set({ isLoading: true });
+    try {
+      const res: any = await api.post('/auth/sms-login', { phone, code });
       const { accessToken, refreshToken, user } = res.data;
       storage.set('accessToken', accessToken);
       storage.set('refreshToken', refreshToken);

@@ -139,6 +139,51 @@ export const browseHistoryApi = {
   clear: () => api.delete('/browse-history'),
 };
 
+// ============ 认证（短信） ============
+export const authApi = {
+  sendCode: (phone: string) => api.post('/auth/send-code', { phone }),
+  smsLogin: (phone: string, code: string) => api.post('/auth/sms-login', { phone, code }),
+};
+
+// ============ 文件上传 ============
+export const uploadApi = {
+  uploadImage: (file: { uri: string; type: string; name: string }) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri,
+      type: file.type,
+      name: file.name,
+    } as any);
+    return api.post('/upload/image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
+  },
+};
+
+// ============ 分析追踪 ============
+export const analyticsApi = {
+  track: (data: {
+    eventType: string;
+    eventName: string;
+    properties?: Record<string, any>;
+    platform?: string;
+    appVersion?: string;
+    deviceId?: string;
+  }) => api.post('/events/track', {
+    platform: 'android',
+    appVersion: '1.0.0',
+    ...data,
+  }),
+};
+
+// ============ 支付 ============
+export const paymentApi = {
+  mockPay: (orderNo: string) => api.post(`/payment/mock-pay/${orderNo}`),
+  status: (orderNo: string) => api.get(`/payment/status/${orderNo}`),
+  callback: (data: any) => api.post('/payment/callback', data),
+};
+
 // SSE Stream Helper — uses XMLHttpRequest for SSE streaming (most reliable in React Native)
 export const createChatStream = async (
   message: string,
@@ -146,6 +191,11 @@ export const createChatStream = async (
   onChunk: (chunk: string) => void,
   onDone: (conversationId: number) => void,
   onError: (error: string) => void,
+  onThinking?: (chunk: string) => void,
+  thinkingEnabled?: boolean,
+  onSearchResults?: (results: Array<{ title: string; url: string; snippet: string }>) => void,
+  imageUrl?: string,
+  webSearch?: boolean,
 ) => {
   const token = storage.getString('accessToken');
 
@@ -156,7 +206,7 @@ export const createChatStream = async (
     xhr.open('POST', url, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    xhr.timeout = 60000;
+    xhr.timeout = 120000;
 
     let buffer = '';
     let lastPos = 0;
@@ -190,7 +240,11 @@ export const createChatStream = async (
 
             try {
               const data = JSON.parse(payload);
-              if (data.chunk !== undefined && data.chunk !== '') {
+              if (data.type === 'thinking' && data.thinkingChunk) {
+                onThinking?.(data.thinkingChunk);
+              } else if (data.type === 'search' && data.searchResults) {
+                onSearchResults?.(data.searchResults);
+              } else if (data.chunk !== undefined && data.chunk !== '') {
                 onChunk(data.chunk);
               } else if (data.done) {
                 done = true;
@@ -234,7 +288,7 @@ export const createChatStream = async (
       resolve();
     };
 
-    const body = JSON.stringify({ message, conversationId });
+    const body = JSON.stringify({ message, conversationId, thinkingEnabled, imageUrl, webSearch });
     console.log('[AI] XHR sending:', body);
     xhr.send(body);
   });

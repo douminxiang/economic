@@ -3,6 +3,8 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { SendCodeDto } from './dto/send-code.dto';
+import { SmsLoginDto } from './dto/sms-login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -21,5 +23,15 @@ export class AuthController {
   @Post('refresh')
   refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refresh(dto.refreshToken);
+  }
+
+  @Post('send-code')
+  sendCode(@Body() dto: SendCodeDto) {
+    return this.authService.sendCode(dto);
+  }
+
+  @Post('sms-login')
+  smsLogin(@Body() dto: SmsLoginDto) {
+    return this.authService.smsLogin(dto);
   }
 }

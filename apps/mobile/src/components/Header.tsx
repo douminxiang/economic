@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
-import { colors, spacing, fontSize, borderRadius } from '../theme/tokens';
+import { spacing, fontSize, borderRadius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 
 interface HeaderProps {
   title: string;
@@ -10,6 +11,8 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ title, onBack, rightComponent, style }) => {
+  const { colors } = useTheme();
+
   return (
     <View style={[styles.container, style]}>
       <View style={styles.left}>

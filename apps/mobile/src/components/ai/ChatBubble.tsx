@@ -1,10 +1,22 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, fontSize, spacing, borderRadius } from '../../theme/tokens';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { fontSize, spacing, borderRadius } from '../../theme/tokens';
+import { useTheme } from '../../theme/ThemeContext';
+import { SearchResultCard } from './SearchResultCard';
+
+interface SearchResult {
+  title: string;
+  url: string;
+  snippet: string;
+}
 
 interface Props {
   role: 'user' | 'assistant';
   content: string;
+  thinkingContent?: string;
+  imageUrl?: string;
+  searchResults?: SearchResult[];
   onRestaurantPress?: (name: string) => void;
 }
 
@@ -16,6 +28,8 @@ function parseRestaurants(text: string): { intro: string; restaurants: string[] 
 }
 
 function RestaurantCard({ text, onPress }: { text: string; onPress?: (name: string) => void }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
   const lines = text.split('\n').filter((l) => l.trim());
   const name = lines[0]?.replace(/🍽️?\s*\**/g, '').replace(/\**/g, '').trim() || '';
 
@@ -66,18 +80,23 @@ function RestaurantCard({ text, onPress }: { text: string; onPress?: (name: stri
         ) : null}
       </View>
       <View style={styles.cardButton}>
-        <Text style={styles.cardButtonText}>查看详情 ›</Text>
+        <Text style={styles.cardButtonText}>{t('ai.viewDetails')}</Text>
       </View>
     </TouchableOpacity>
   );
 }
 
-export const ChatBubble: React.FC<Props> = ({ role, content, onRestaurantPress }) => {
+export const ChatBubble: React.FC<Props> = ({ role, content, thinkingContent, imageUrl, searchResults, onRestaurantPress }) => {
+  const { colors } = useTheme();
   const isUser = role === 'user';
+  const [thinkingExpanded, setThinkingExpanded] = useState(false);
 
   if (isUser) {
     return (
       <View style={styles.userContainer}>
+        {imageUrl && (
+          <Image source={{ uri: imageUrl }} style={styles.userImage} />
+        )}
         <View style={styles.userBubble}>
           <Text style={styles.userText}>{content}</Text>
         </View>
@@ -93,6 +112,25 @@ export const ChatBubble: React.FC<Props> = ({ role, content, onRestaurantPress }
         <Text style={{ fontSize: 14 }}>🤖</Text>
       </View>
       <View style={styles.assistantContent}>
+        {thinkingContent ? (
+          <TouchableOpacity
+            style={styles.thinkingToggle}
+            onPress={() => setThinkingExpanded(!thinkingExpanded)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.thinkingToggleText}>
+              {thinkingExpanded ? '▾ Deep Thinking' : '▸ Deep Thinking'}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+        {thinkingContent && thinkingExpanded ? (
+          <View style={styles.thinkingBox}>
+            <Text style={styles.thinkingText}>{thinkingContent}</Text>
+          </View>
+        ) : null}
+        {searchResults && searchResults.length > 0 && (
+          <SearchResultCard results={searchResults} />
+        )}
         {intro ? <Text style={styles.assistantText}>{intro}</Text> : null}
         {restaurants.map((r, i) => (
           <RestaurantCard key={i} text={r} onPress={onRestaurantPress} />
@@ -113,6 +151,14 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg, borderBottomRightRadius: borderRadius.xs,
   },
   userText: { fontSize: fontSize.md, color: '#FFF', lineHeight: 22 },
+  userImage: {
+    width: 200,
+    height: 150,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
 
   assistantContainer: {
     marginVertical: 4, paddingHorizontal: spacing.md,
@@ -150,4 +196,28 @@ const styles = StyleSheet.create({
     alignItems: 'center', borderTopWidth: 1, borderTopColor: '#FFE8DD',
   },
   cardButtonText: { color: '#FFF', fontSize: fontSize.sm, fontWeight: '600' },
+
+  thinkingToggle: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 4,
+  },
+  thinkingToggleText: {
+    fontSize: 12,
+    color: '#FF6B35',
+    fontWeight: '600',
+  },
+  thinkingBox: {
+    backgroundColor: '#F5F5F5',
+    borderLeftWidth: 2,
+    borderLeftColor: '#FF6B35',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 6,
+  },
+  thinkingText: {
+    fontSize: 12,
+    color: '#666',
+    lineHeight: 18,
+  },
 });

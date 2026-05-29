@@ -1,11 +1,63 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useCart, useUpdateCartItem, useRemoveCartItem, useClearCart } from '../hooks';
 import { useCartStore } from '../stores/cartStore';
-import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 import { EmptyView } from '../components';
 
 export default function CartScreen({ navigation }: any) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+
+  const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    header: {
+      flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+      paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+      backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    backIcon: { fontSize: 20, color: colors.text },
+    headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text, flex: 1 },
+    clearText: { fontSize: fontSize.sm, color: colors.textSecondary },
+    listContent: { padding: spacing.md },
+    itemCard: {
+      flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
+      borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm, ...shadows.sm,
+    },
+    itemImagePlaceholder: { width: 64, height: 64, borderRadius: borderRadius.sm, backgroundColor: colors.border },
+    itemInfo: { flex: 1, marginLeft: spacing.md },
+    itemName: { fontSize: fontSize.md, fontWeight: '500', color: colors.text },
+    itemPrice: { fontSize: fontSize.sm, color: colors.primary, marginTop: spacing.xs },
+    quantityRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    qtyBtn: {
+      width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: colors.border,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    qtyBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    qtyBtnText: { fontSize: fontSize.md, color: colors.textSecondary },
+    qtyBtnTextActive: { color: colors.white },
+    qtyText: { fontSize: fontSize.md, fontWeight: '600', color: colors.text, minWidth: 20, textAlign: 'center' },
+    bottomBar: {
+      flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
+      paddingHorizontal: spacing.md, paddingVertical: spacing.md,
+      borderTopWidth: 1, borderTopColor: colors.border, ...shadows.sm,
+    },
+    totalSection: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+    totalLabel: { fontSize: fontSize.md, color: colors.text },
+    totalAmount: { fontSize: fontSize.xl, fontWeight: '700', color: colors.primary },
+    checkoutBtn: {
+      backgroundColor: colors.primary, paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.sm, borderRadius: borderRadius.full,
+    },
+    checkoutText: { color: colors.white, fontSize: fontSize.md, fontWeight: '600' },
+    emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    emptyText: { fontSize: fontSize.md, color: colors.textSecondary, marginBottom: spacing.md },
+    goShopBtn: { backgroundColor: colors.primary, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: borderRadius.full },
+    goShopText: { color: colors.white, fontSize: fontSize.md, fontWeight: '600' },
+  });
+
   const { data } = useCart();
   const cart = data?.data;
   const updateMut = useUpdateCartItem();
@@ -28,12 +80,12 @@ export default function CartScreen({ navigation }: any) {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>购物车</Text>
+          <Text style={styles.headerTitle}>{t('cart.title')}</Text>
         </View>
         <View style={styles.emptyContainer}>
-          <EmptyView message="购物车是空的" hint="去逛逛发现美食" />
+          <EmptyView message={t('cart.empty')} hint={t('cart.emptyHint')} />
           <TouchableOpacity style={styles.goShopBtn} onPress={() => navigation.navigate('Home')}>
-            <Text style={styles.goShopText}>去逛逛</Text>
+            <Text style={styles.goShopText}>{t('cart.goShopping')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -46,14 +98,14 @@ export default function CartScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>购物车</Text>
+        <Text style={styles.headerTitle}>{t('cart.title')}</Text>
         <TouchableOpacity onPress={() => {
-          Alert.alert('提示', '确定清空购物车？', [
-            { text: '取消' },
-            { text: '确定', onPress: () => clearMut.mutate() },
+          Alert.alert(t('common.tip'), t('cart.clearCart'), [
+            { text: t('common.cancel') },
+            { text: t('common.confirm'), onPress: () => clearMut.mutate() },
           ]);
         }}>
-          <Text style={styles.clearText}>清空</Text>
+          <Text style={styles.clearText}>{t('cart.clear')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -95,63 +147,16 @@ export default function CartScreen({ navigation }: any) {
 
       <View style={styles.bottomBar}>
         <View style={styles.totalSection}>
-          <Text style={styles.totalLabel}>合计：</Text>
+          <Text style={styles.totalLabel}>{t('cart.total')}</Text>
           <Text style={styles.totalAmount}>¥{totalAmount.toFixed(2)}</Text>
         </View>
         <TouchableOpacity
           style={styles.checkoutBtn}
           onPress={() => navigation.navigate('Checkout')}
         >
-          <Text style={styles.checkoutText}>去结算({items.length})</Text>
+          <Text style={styles.checkoutText}>{`${t('cart.checkout')}(${items.length})`}</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  backIcon: { fontSize: 20, color: colors.text },
-  headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text, flex: 1 },
-  clearText: { fontSize: fontSize.sm, color: colors.textSecondary },
-  listContent: { padding: spacing.md },
-  itemCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
-    borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm, ...shadows.sm,
-  },
-  itemImagePlaceholder: { width: 64, height: 64, borderRadius: borderRadius.sm, backgroundColor: colors.border },
-  itemInfo: { flex: 1, marginLeft: spacing.md },
-  itemName: { fontSize: fontSize.md, fontWeight: '500', color: colors.text },
-  itemPrice: { fontSize: fontSize.sm, color: colors.primary, marginTop: spacing.xs },
-  quantityRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  qtyBtn: {
-    width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: colors.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  qtyBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  qtyBtnText: { fontSize: fontSize.md, color: colors.textSecondary },
-  qtyBtnTextActive: { color: colors.white },
-  qtyText: { fontSize: fontSize.md, fontWeight: '600', color: colors.text, minWidth: 20, textAlign: 'center' },
-  bottomBar: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md, paddingVertical: spacing.md,
-    borderTopWidth: 1, borderTopColor: colors.border, ...shadows.sm,
-  },
-  totalSection: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  totalLabel: { fontSize: fontSize.md, color: colors.text },
-  totalAmount: { fontSize: fontSize.xl, fontWeight: '700', color: colors.primary },
-  checkoutBtn: {
-    backgroundColor: colors.primary, paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm, borderRadius: borderRadius.full,
-  },
-  checkoutText: { color: colors.white, fontSize: fontSize.md, fontWeight: '600' },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: fontSize.md, color: colors.textSecondary, marginBottom: spacing.md },
-  goShopBtn: { backgroundColor: colors.primary, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: borderRadius.full },
-  goShopText: { color: colors.white, fontSize: fontSize.md, fontWeight: '600' },
-});

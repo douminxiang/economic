@@ -82,6 +82,7 @@ model Shop {
   businessHours String?  @db.VarChar(50)
   categoryId    Int?
   status        Int      @default(1)
+  embedding     Json?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -261,6 +262,8 @@ model AIMessage {
   conversationId Int
   role           String   @db.VarChar(20) // 'user' | 'assistant'
   content        String   @db.Text
+  thinking       String?  @db.Text
+  imageUrl       String?  @db.VarChar(500)
   createdAt      DateTime @default(now())
 
   conversation AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -283,4 +286,23 @@ model BrowseHistory {
   @@unique([userId, shopId])
   @@index([userId])
   @@map("browse_histories")
+}
+
+// ============ 追踪事件 ============
+
+model TrackEvent {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  eventType  String   @db.VarChar(50)
+  eventName  String   @db.VarChar(100)
+  properties Json?
+  platform   String   @db.VarChar(20)
+  appVersion String?  @db.VarChar(20)
+  deviceId   String?  @db.VarChar(100)
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("track_events")
 }

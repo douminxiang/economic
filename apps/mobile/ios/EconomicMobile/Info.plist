@@ -55,5 +55,11 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>alipay</string>
+		<string>weixin</string>
+		<string>wechat</string>
+	</array>
 </dict>
 </plist>

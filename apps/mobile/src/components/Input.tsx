@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TextInput, Text, StyleSheet, TextInputProps } from 'react-native';
-import { colors, spacing, fontSize, borderRadius } from '../theme/tokens';
+import { spacing, fontSize, borderRadius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -8,6 +9,8 @@ interface InputProps extends TextInputProps {
 }
 
 export const Input = React.forwardRef<TextInput, InputProps>(({ label, error, style, ...props }, ref) => {
+  const { colors } = useTheme();
+
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}

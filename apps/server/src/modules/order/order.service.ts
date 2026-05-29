@@ -1,15 +1,95 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PaymentService } from '../payment/payment.service';
+import { EventsGateway } from '../events/events.gateway';
+
+const STATUS_TEXT: Record<number, string> = {
+  0: '待支付',
+  1: '已支付',
+  2: '准备中',
+  3: '配送中',
+  4: '已完成',
+  5: '已取消',
+};
 
 @Injectable()
 export class OrderService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(OrderService.name);
+  private riderLocationIntervals = new Map<number, ReturnType<typeof setInterval>>();
+
+  constructor(
+    private prisma: PrismaService,
+    private paymentService: PaymentService,
+    private eventsGateway: EventsGateway,
+  ) {}
 
   private generateOrderNo(): string {
     const now = new Date();
     const date = now.toISOString().slice(0, 10).replace(/-/g, '');
     const rand = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     return `${date}${rand}`;
+  }
+
+  private async emitStatusChange(orderId: number, userId: number, status: number) {
+    try {
+      const orderNo = (await this.prisma.order.findUnique({ where: { id: orderId } }))?.orderNo || '';
+      this.eventsGateway.emitOrderStatusChanged(userId, {
+        orderId,
+        orderNo,
+        status,
+        statusText: STATUS_TEXT[status] || '未知状态',
+      });
+
+      // Start simulated rider location tracking when status changes to delivering (3)
+      if (status === 3) {
+        this.startRiderLocationSimulation(orderId);
+      }
+    } catch (err) {
+      this.logger.error(`Failed to emit status change for order ${orderId}`, err);
+    }
+  }
+
+  private startRiderLocationSimulation(orderId: number) {
+    // Clear any existing interval for this order
+    this.stopRiderLocationSimulation(orderId);
+
+    let elapsed = 0;
+    const maxDuration = 30 * 60; // 30 minutes in seconds
+    const interval = 5000; // 5 seconds
+
+    // Simulate rider starting from a fixed location near Hangzhou center
+    const startLat = 30.2741;
+    const startLng = 120.1551;
+
+    const timer = setInterval(() => {
+      elapsed += interval / 1000;
+      if (elapsed >= maxDuration) {
+        this.stopRiderLocationSimulation(orderId);
+        return;
+      }
+
+      // Simulate movement: slowly drift toward destination
+      const progress = elapsed / maxDuration;
+      const latitude = startLat + progress * 0.02;
+      const longitude = startLng - progress * 0.01;
+      const estimatedMinutes = Math.max(0, Math.ceil((maxDuration - elapsed) / 60));
+
+      this.eventsGateway.emitRiderLocation(orderId, {
+        latitude,
+        longitude,
+        estimatedMinutes,
+      });
+    }, interval);
+
+    this.riderLocationIntervals.set(orderId, timer);
+  }
+
+  private stopRiderLocationSimulation(orderId: number) {
+    const timer = this.riderLocationIntervals.get(orderId);
+    if (timer) {
+      clearInterval(timer);
+      this.riderLocationIntervals.delete(orderId);
+    }
   }
 
   async create(userId: number, addressId: number, remark?: string) {
@@ -161,10 +241,29 @@ export class OrderService {
     });
     if (!order) throw new NotFoundException('订单不存在或状态异常');
 
-    return this.prisma.order.update({
-      where: { id },
-      data: { status: 1, payMethod, payTime: new Date() },
-    });
+    // Create payment via PaymentService
+    const paymentResult = await this.paymentService.createPayment(
+      order.orderNo,
+      Number(order.payAmount),
+      `订单-${order.orderNo}`,
+    );
+
+    // If mock mode or direct pay, update order immediately
+    if (paymentResult.mockMode) {
+      await this.prisma.order.update({
+        where: { id },
+        data: { status: 1, payMethod, payTime: new Date() },
+      });
+      // Emit status change: paid (1)
+      await this.emitStatusChange(id, userId, 1);
+    }
+
+    return {
+      ...order,
+      payMethod,
+      payUrl: paymentResult.payUrl,
+      mockMode: paymentResult.mockMode,
+    };
   }
 
   async cancel(userId: number, id: number) {
@@ -173,10 +272,16 @@ export class OrderService {
     });
     if (!order) throw new NotFoundException('订单不存在或状态异常');
 
-    return this.prisma.order.update({
+    await this.prisma.order.update({
       where: { id },
       data: { status: 5 },
     });
+
+    // Emit status change: cancelled (5)
+    await this.emitStatusChange(id, userId, 5);
+    this.stopRiderLocationSimulation(id);
+
+    return { id, status: 5 };
   }
 
   async confirm(userId: number, id: number) {
@@ -185,9 +290,15 @@ export class OrderService {
     });
     if (!order) throw new NotFoundException('订单不存在或状态异常');
 
-    return this.prisma.order.update({
+    await this.prisma.order.update({
       where: { id },
       data: { status: 4 },
     });
+
+    // Emit status change: completed (4)
+    await this.emitStatusChange(id, userId, 4);
+    this.stopRiderLocationSimulation(id);
+
+    return { id, status: 4 };
   }
 }

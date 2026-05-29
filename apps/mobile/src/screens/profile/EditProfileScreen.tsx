@@ -3,38 +3,40 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaVi
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { Input, Button } from '../../components';
-import { colors, spacing, fontSize, borderRadius } from '../../theme/tokens';
-
-const editProfileSchema = z.object({
-  nickname: z.string().min(2, '昵称至少2个字符').max(20, '昵称不超过20个字符'),
-});
-
-type EditProfileFormData = z.infer<typeof editProfileSchema>;
+import { spacing, fontSize, borderRadius } from '../../theme/tokens';
+import { useTheme } from '../../theme/ThemeContext';
 
 export default function EditProfileScreen({ navigation }: any) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
   const { user, updateUser } = useAuth();
+
+  const editProfileSchema = z.object({
+    nickname: z.string().min(2, t('auth.nicknameMinLength')).max(20, t('auth.nicknameMaxLength')),
+  });
 
   const {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<EditProfileFormData>({
+  } = useForm<{ nickname: string }>({
     resolver: zodResolver(editProfileSchema),
     defaultValues: {
       nickname: user?.nickname || '',
     },
   });
 
-  const onSubmit = async (data: EditProfileFormData) => {
+  const onSubmit = async (data: { nickname: string }) => {
     try {
       await updateUser({ nickname: data.nickname });
-      Alert.alert('成功', '资料已更新', [
-        { text: '确定', onPress: () => navigation.goBack() },
+      Alert.alert(t('common.success'), '资料已更新', [
+        { text: t('common.confirm'), onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
-      Alert.alert('错误', '更新失败，请重试');
+      Alert.alert(t('common.error'), '更新失败，请重试');
     }
   };
 
@@ -42,9 +44,9 @@ export default function EditProfileScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>← 返回</Text>
+          <Text style={styles.backText}>← {t('common.back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>编辑资料</Text>
+        <Text style={styles.headerTitle}>{t('profile.editProfile')}</Text>
         <View style={styles.backButton} />
       </View>
 
@@ -60,7 +62,7 @@ export default function EditProfileScreen({ navigation }: any) {
               {user?.nickname ? user.nickname.charAt(0) : '?'}
             </Text>
           </View>
-          <Text style={styles.avatarHint}>当前头像</Text>
+          <Text style={styles.avatarHint}>{t('profile.currentAvatar')}</Text>
         </View>
 
         {/* Form */}
@@ -70,8 +72,8 @@ export default function EditProfileScreen({ navigation }: any) {
             name="nickname"
             render={({ field: { onChange, onBlur, value } }) => (
               <Input
-                label="昵称"
-                placeholder="请输入昵称"
+                label={t('profile.nickname')}
+                placeholder={t('profile.nicknamePlaceholder')}
                 onBlur={onBlur}
                 onChangeText={onChange}
                 value={value}
@@ -80,7 +82,7 @@ export default function EditProfileScreen({ navigation }: any) {
             )}
           />
 
-          <Text style={styles.label}>手机号</Text>
+          <Text style={styles.label}>{t('profile.phone')}</Text>
           <View style={styles.readOnlyField}>
             <Text style={styles.readOnlyText}>{user?.phone || '-'}</Text>
           </View>
@@ -88,7 +90,7 @@ export default function EditProfileScreen({ navigation }: any) {
 
         {/* Save Button */}
         <Button
-          title={isSubmitting ? '保存中...' : '保存'}
+          title={isSubmitting ? t('common.saving') : t('common.save')}
           onPress={handleSubmit(onSubmit)}
           loading={isSubmitting}
           disabled={isSubmitting}
@@ -101,89 +103,21 @@ export default function EditProfileScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  backButton: {
-    width: 60,
-  },
-  backText: {
-    fontSize: fontSize.md,
-    color: colors.primary,
-  },
-  headerTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flex: 1,
-  },
-  content: {
-    padding: spacing.md,
-  },
-  avatarSection: {
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: fontSize.xxl,
-    fontWeight: 'bold',
-    color: '#FFF',
-  },
-  avatarHint: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
-  },
-  formSection: {
-    marginBottom: spacing.lg,
-  },
-  label: {
-    fontSize: fontSize.sm,
-    color: colors.text,
-    marginBottom: spacing.xs,
-    fontWeight: '500',
-  },
-  readOnlyField: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: fontSize.md,
-    backgroundColor: colors.background,
-    minHeight: 48,
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  readOnlyText: {
-    fontSize: fontSize.md,
-    color: colors.textSecondary,
-  },
-  saveButton: {
-    marginTop: spacing.md,
-  },
+  safe: { flex: 1, backgroundColor: colors.background },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.md, backgroundColor: colors.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  backButton: { width: 60 },
+  backText: { fontSize: fontSize.md, color: colors.primary },
+  headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
+  container: { flex: 1 },
+  scrollContent: { flex: 1 },
+  content: { padding: spacing.md },
+  avatarSection: { alignItems: 'center', paddingVertical: spacing.lg },
+  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
+  avatarText: { fontSize: fontSize.xxl, fontWeight: 'bold', color: '#FFF' },
+  avatarHint: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: spacing.sm },
+  formSection: { marginBottom: spacing.lg },
+  label: { fontSize: fontSize.sm, color: colors.text, marginBottom: spacing.xs, fontWeight: '500' },
+  readOnlyField: { borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.md, backgroundColor: colors.background, minHeight: 48, justifyContent: 'center', marginBottom: spacing.md },
+  readOnlyText: { fontSize: fontSize.md, color: colors.textSecondary },
+  saveButton: { marginTop: spacing.md },
 });

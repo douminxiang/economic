@@ -1,10 +1,40 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useCategories, useShopList } from '../hooks';
-import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 import { EmptyView } from '../components';
 
 export default function CategoryScreen({ navigation, route }: any) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+
+  const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    header: {
+      flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+      paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+      backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    backIcon: { fontSize: 20, color: colors.text },
+    headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
+    content: { flex: 1, flexDirection: 'row' },
+    leftPanel: { width: 90, backgroundColor: colors.surface },
+    catItem: { paddingVertical: spacing.md, alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+    catItemActive: { backgroundColor: colors.background, borderLeftWidth: 3, borderLeftColor: colors.primary },
+    catIcon: { fontSize: 24 },
+    catName: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs },
+    catNameActive: { color: colors.primary, fontWeight: '600' },
+    rightPanel: { flex: 1 },
+    shopCard: { flexDirection: 'row', backgroundColor: colors.surface, margin: spacing.sm, padding: spacing.md, borderRadius: borderRadius.md, ...shadows.sm },
+    shopImage: { width: 56, height: 56, borderRadius: borderRadius.sm, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
+    shopImgText: { fontSize: fontSize.lg, color: colors.surface, fontWeight: 'bold' },
+    shopInfo: { flex: 1, marginLeft: spacing.md, justifyContent: 'center' },
+    shopName: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
+    shopMeta: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+  });
+
   const initialCatId = route?.params?.categoryId;
   const { data: categories } = useCategories();
   const [selectedId, setSelectedId] = useState<number | undefined>(initialCatId);
@@ -18,7 +48,7 @@ export default function CategoryScreen({ navigation, route }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>分类浏览</Text>
+        <Text style={styles.headerTitle}>{t('category.title')}</Text>
       </View>
 
       <View style={styles.content}>
@@ -54,7 +84,7 @@ export default function CategoryScreen({ navigation, route }: any) {
               </View>
             </TouchableOpacity>
           )}
-          ListEmptyComponent={<EmptyView message="暂无商家" />}
+          ListEmptyComponent={<EmptyView message="{t('category.noShops')}" />}
           onEndReached={() => hasNextPage && !isFetchingNextPage && fetchNextPage()}
           onEndReachedThreshold={0.3}
         />
@@ -63,28 +93,3 @@ export default function CategoryScreen({ navigation, route }: any) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  backIcon: { fontSize: 20, color: colors.text },
-  headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
-  content: { flex: 1, flexDirection: 'row' },
-  leftPanel: { width: 90, backgroundColor: colors.surface },
-  catItem: { paddingVertical: spacing.md, alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  catItemActive: { backgroundColor: colors.background, borderLeftWidth: 3, borderLeftColor: colors.primary },
-  catIcon: { fontSize: 24 },
-  catName: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs },
-  catNameActive: { color: colors.primary, fontWeight: '600' },
-  rightPanel: { flex: 1 },
-  shopCard: { flexDirection: 'row', backgroundColor: colors.surface, margin: spacing.sm, padding: spacing.md, borderRadius: borderRadius.md, ...shadows.sm },
-  shopImage: { width: 56, height: 56, borderRadius: borderRadius.sm, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  shopImgText: { fontSize: fontSize.lg, color: colors.surface, fontWeight: 'bold' },
-  shopInfo: { flex: 1, marginLeft: spacing.md, justifyContent: 'center' },
-  shopName: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
-  shopMeta: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-});

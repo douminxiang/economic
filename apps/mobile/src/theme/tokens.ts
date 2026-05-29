@@ -1,4 +1,4 @@
-export const colors = {
+export const lightColors = {
   primary: '#FF6B35',
   primaryLight: '#FF8F65',
   secondary: '#004E89',
@@ -17,6 +17,28 @@ export const colors = {
   overlayDark: '#00000066',
   headerDark: '#444444',
 };
+
+export const darkColors = {
+  primary: '#FF8F65',
+  primaryLight: '#FFB08A',
+  secondary: '#5B9BD5',
+  background: '#121212',
+  surface: '#1E1E1E',
+  text: '#F0F0F0',
+  textSecondary: '#AAAAAA',
+  textLight: '#777777',
+  border: '#333333',
+  success: '#66BB6A',
+  error: '#EF5350',
+  warning: '#FFA726',
+  white: '#FFFFFF',
+  overlay: 'rgba(0,0,0,0.7)',
+  star: '#FFD54F',
+  overlayDark: '#00000099',
+  headerDark: '#2A2A2A',
+};
+
+export type ColorScheme = typeof lightColors;
 
 export const spacing = {
   xs: 4,
@@ -61,3 +83,6 @@ export const shadows = {
     elevation: 4,
   },
 };
+
+// Legacy export for backward compatibility during migration
+export const colors = lightColors;

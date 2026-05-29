@@ -8,3 +8,18 @@ android/app/build/
 android/build/
 .idea/
 *.hprof
+
+# Keystore
+*.keystore
+keystore.properties
+!debug.keystore
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Build
+*.aab
+*.ipa

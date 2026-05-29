@@ -76,7 +76,14 @@
       "Bash(powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\")",
       "Bash(tasklist)",
       "Bash(findstr /i \"node react\")",
-      "Bash(adb exec-out *)"
+      "Bash(adb exec-out *)",
+      "Read(//c/Users/Lenovo/AppData/Roaming/Code/User/**)",
+      "Read(//c/Users/Lenovo/**)",
+      "Bash(pnpm --filter @economic/mobile add react-native-image-picker)",
+      "Bash(ls node_modules/@nestjs/websockets/package.json)",
+      "Bash(ls node_modules/@nestjs/platform-socket.io/package.json)",
+      "Bash(ls node_modules/socket.io/package.json)",
+      "Bash(ls node_modules/socket.io-client/package.json)"
     ]
   }
 }

@@ -1,13 +1,29 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { SendCodeDto } from './dto/send-code.dto';
+import { SmsLoginDto } from './dto/sms-login.dto';
+
+// In-memory SMS code storage (mock mode, use Redis in production)
+interface SmsRecord {
+  code: string;
+  expiresAt: number;
+}
 
 @Injectable()
 export class AuthService {
+  private smsCodes = new Map<string, SmsRecord>();
+  private smsCooldowns = new Map<string, number>();
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -75,5 +91,71 @@ export class AuthService {
       },
     );
     return { accessToken, refreshToken };
+  }
+
+  async sendCode(dto: SendCodeDto) {
+    const { phone } = dto;
+
+    // 60-second cooldown check
+    const lastSent = this.smsCooldowns.get(phone);
+    if (lastSent && Date.now() - lastSent < 60000) {
+      const remaining = Math.ceil((60000 - (Date.now() - lastSent)) / 1000);
+      throw new BadRequestException(`请在 ${remaining} 秒后再试`);
+    }
+
+    // Generate 6-digit code
+    const code = Math.random().toString().slice(2, 8).padEnd(6, '0');
+
+    // Store code with 5-minute expiry
+    this.smsCodes.set(phone, {
+      code,
+      expiresAt: Date.now() + 5 * 60 * 1000,
+    });
+    this.smsCooldowns.set(phone, Date.now());
+
+    // Mock mode: log to console instead of sending real SMS
+    console.log(`\n📱 [SMS MOCK] 验证码发送到 ${phone}: ${code}\n`);
+
+    // TODO: Replace with real SMS API call (e.g., Aliyun SMS)
+    // await this.aliyunSms.send(phone, { code });
+
+    return { message: '验证码已发送', phone };
+  }
+
+  async smsLogin(dto: SmsLoginDto) {
+    const { phone, code } = dto;
+
+    // Verify code
+    const record = this.smsCodes.get(phone);
+    if (!record) {
+      throw new BadRequestException('请先获取验证码');
+    }
+    if (Date.now() > record.expiresAt) {
+      this.smsCodes.delete(phone);
+      throw new BadRequestException('验证码已过期，请重新获取');
+    }
+    if (record.code !== code) {
+      throw new BadRequestException('验证码错误');
+    }
+
+    // Code verified, clean up
+    this.smsCodes.delete(phone);
+
+    // Find or create user
+    let user = await this.prisma.user.findUnique({ where: { phone } });
+    if (!user) {
+      // Auto-register on first SMS login (no password)
+      user = await this.prisma.user.create({
+        data: {
+          phone,
+          password: '', // SMS login users have no password
+          nickname: `用户${phone.slice(-4)}`,
+        },
+      });
+    }
+
+    const tokens = this.generateTokens(user.id, user.phone);
+    const { password, ...userWithoutPassword } = user;
+    return { ...tokens, user: userWithoutPassword };
   }
 }

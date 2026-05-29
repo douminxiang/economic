@@ -1,19 +1,26 @@
 // apps/server/src/modules/ai/ai.service.ts
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmbeddingService } from './embedding.service';
+import { SearchService } from './search.service';
 import { ChatMessage } from './types';
 
 const AI_BASE_URL = 'https://api.siliconflow.cn';
-const AI_MODEL = 'deepseek-ai/DeepSeek-V3.2';
+const AI_MODEL_DEFAULT = 'deepseek-ai/DeepSeek-V3.2';
+const AI_MODEL_THINKING = 'deepseek-ai/DeepSeek-R1';
 
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private embeddingService: EmbeddingService,
+    private searchService: SearchService,
+  ) {}
 
-  async chat(userId: number, message: string, conversationId?: number) {
-    this.logger.log(`AI chat: userId=${userId}, message=${message?.slice(0, 50)}, conversationId=${conversationId}`);
+  async chat(userId: number, message: string, conversationId?: number, thinkingEnabled?: boolean, imageUrl?: string, webSearch?: boolean) {
+    this.logger.log(`AI chat: userId=${userId}, message=${message?.slice(0, 50)}, conversationId=${conversationId}, thinking=${thinkingEnabled}, imageUrl=${imageUrl}, webSearch=${webSearch}`);
     const conversation = conversationId
       ? await this.prisma.aIConversation.findFirst({
           where: { id: conversationId, userId },
@@ -27,7 +34,7 @@ export class AiService {
     }
 
     await this.prisma.aIMessage.create({
-      data: { conversationId: conversation.id, role: 'user', content: message },
+      data: { conversationId: conversation.id, role: 'user', content: message, imageUrl: imageUrl || null },
     });
 
     const historyRaw = await this.prisma.aIMessage.findMany({
@@ -37,27 +44,59 @@ export class AiService {
     });
     const history = historyRaw.reverse();
 
-    const messages: ChatMessage[] = history.map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    }));
+    const messages: any[] = history.map((m) => {
+      // Use multimodal format for user messages with imageUrl
+      if (m.role === 'user' && m.imageUrl) {
+        return {
+          role: 'user',
+          content: [
+            { type: 'text', text: m.content },
+            { type: 'image_url', image_url: { url: m.imageUrl } },
+          ],
+        };
+      }
+      return {
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      };
+    });
 
     const dbContext = await this.buildDbContext(message);
     const systemPrompt = this.buildSystemPrompt(dbContext);
 
     // Call SiliconFlow (OpenAI-compatible) streaming API
+    const model = thinkingEnabled ? AI_MODEL_THINKING : AI_MODEL_DEFAULT;
+    const requestBody: any = {
+      model,
+      max_tokens: thinkingEnabled ? 4096 : 1024,
+      temperature: thinkingEnabled ? 0.6 : undefined,
+      stream: true,
+      messages: [{ role: 'system', content: systemPrompt }, ...messages],
+    };
+
+    // Add tool definitions when web search is enabled
+    if (webSearch) {
+      requestBody.tools = [{
+        type: 'function',
+        function: {
+          name: 'web_search',
+          description: 'Search the web for current information about restaurants, food trends, or any real-time information.',
+          parameters: {
+            type: 'object',
+            properties: { query: { type: 'string', description: 'The search query' } },
+            required: ['query'],
+          },
+        },
+      }];
+    }
+
     const response = await fetch(`${AI_BASE_URL}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.ANTHROPIC_API_KEY}`,
       },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        max_tokens: 1024,
-        stream: true,
-        messages: [{ role: 'system', content: systemPrompt }, ...messages],
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -71,34 +110,15 @@ export class AiService {
 
   private async buildDbContext(userMessage: string): Promise<string> {
     try {
-      const keywords = userMessage
-        .replace(/[？！。，、\.\!\?\,\s]+/g, ' ')
-        .trim()
-        .split(' ')
-        .filter((w) => w.length >= 1);
-
-      const conditions: any[] = [];
-      for (const kw of keywords) {
-        conditions.push(
-          { name: { contains: kw } },
-          { address: { contains: kw } },
-          { category: { name: { contains: kw } } },
-          { products: { some: { name: { contains: kw } } } },
-        );
+      // Try hybrid vector + keyword search first
+      let shops: any[];
+      try {
+        shops = await this.embeddingService.hybridSearch(userMessage, 10);
+      } catch (embeddingError) {
+        // Fallback to keyword-based search if embedding fails
+        this.logger.warn('Embedding search failed, falling back to keyword search', embeddingError);
+        shops = await this.keywordSearch(userMessage);
       }
-
-      const shops = await this.prisma.shop.findMany({
-        where: {
-          status: 1,
-          ...(conditions.length > 0 ? { OR: conditions } : {}),
-        },
-        include: {
-          category: true,
-          products: { where: { status: 1 }, take: 5, orderBy: { sales: 'desc' } },
-        },
-        take: 10,
-        orderBy: { rating: 'desc' },
-      });
 
       if (shops.length === 0) {
         const topShops = await this.prisma.shop.findMany({
@@ -118,6 +138,37 @@ export class AiService {
       this.logger.error('查询商家数据失败', error);
       return '';
     }
+  }
+
+  private async keywordSearch(userMessage: string): Promise<any[]> {
+    const keywords = userMessage
+      .replace(/[？！。，、\.\!\?\,\s]+/g, ' ')
+      .trim()
+      .split(' ')
+      .filter((w) => w.length >= 1);
+
+    const conditions: any[] = [];
+    for (const kw of keywords) {
+      conditions.push(
+        { name: { contains: kw } },
+        { address: { contains: kw } },
+        { category: { name: { contains: kw } } },
+        { products: { some: { name: { contains: kw } } } },
+      );
+    }
+
+    return this.prisma.shop.findMany({
+      where: {
+        status: 1,
+        ...(conditions.length > 0 ? { OR: conditions } : {}),
+      },
+      include: {
+        category: true,
+        products: { where: { status: 1 }, take: 5, orderBy: { sales: 'desc' } },
+      },
+      take: 10,
+      orderBy: { rating: 'desc' },
+    });
   }
 
   private formatShopData(shops: any[]): string {
@@ -196,9 +247,9 @@ ${dbContext}`;
     });
   }
 
-  async saveAssistantMessage(conversationId: number, content: string) {
+  async saveAssistantMessage(conversationId: number, content: string, thinking?: string) {
     return this.prisma.aIMessage.create({
-      data: { conversationId, role: 'assistant', content },
+      data: { conversationId, role: 'assistant', content, thinking: thinking || null },
     });
   }
 }

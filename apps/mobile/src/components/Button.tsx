@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
-import { colors, spacing, fontSize, borderRadius } from '../theme/tokens';
+import { spacing, fontSize, borderRadius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 
 interface ButtonProps {
   title: string;
@@ -21,6 +22,8 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
+  const { colors } = useTheme();
+
   const buttonStyle = [
     styles.base,
     variant === 'primary' && styles.primary,

@@ -1,10 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useFavoriteList, useToggleFavorite } from '../hooks';
-import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 import { EmptyView } from '../components';
 
 export default function FavoriteScreen({ navigation }: any) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
   const { data } = useFavoriteList();
   const favorites = data?.data || [];
   const toggleMut = useToggleFavorite();
@@ -15,7 +19,7 @@ export default function FavoriteScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>我的收藏</Text>
+        <Text style={styles.headerTitle}>{t('favorite.title')}</Text>
       </View>
 
       <FlatList
@@ -30,23 +34,23 @@ export default function FavoriteScreen({ navigation }: any) {
             <View style={styles.cardImage} />
             <View style={styles.cardInfo}>
               <Text style={styles.cardName}>{item.shopName}</Text>
-              <Text style={styles.cardMeta}>⭐{item.rating.toFixed(1)}  月售{item.monthlySales}</Text>
-              <Text style={styles.cardMeta}>¥{item.minOrder}起送</Text>
+              <Text style={styles.cardMeta}>⭐{item.rating.toFixed(1)}  {t('shop.monthlySales')}{item.monthlySales}</Text>
+              <Text style={styles.cardMeta}>¥{item.minOrder}{t('shop.minOrder')}</Text>
             </View>
             <TouchableOpacity
               style={styles.removeBtn}
               onPress={() => {
-                Alert.alert('提示', '取消收藏？', [
-                  { text: '否' },
-                  { text: '是', onPress: () => toggleMut.mutate(item.shopId) },
+                Alert.alert(t('common.tip'), t('favorite.unfollow'), [
+                  { text: t('common.no') },
+                  { text: t('common.yes'), onPress: () => toggleMut.mutate(item.shopId) },
                 ]);
               }}
             >
-              <Text style={styles.removeBtnText}>取消</Text>
+              <Text style={styles.removeBtnText}>{t('favorite.unfollowAction')}</Text>
             </TouchableOpacity>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={<EmptyView message="暂无收藏" hint="收藏喜欢的商家" />}
+        ListEmptyComponent={<EmptyView message={t('favorite.noFavorites')} hint={t('favorite.favoritesHint')} />}
       />
     </View>
   );

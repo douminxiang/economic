@@ -1,23 +1,33 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSubmitReview } from '../hooks';
-import { colors, spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
-
-const QUICK_TAGS = ['味道好', '分量足', '配送快', '包装好', '性价比高'];
+import { spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function ReviewSubmitScreen({ route, navigation }: any) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
   const { orderId } = route.params;
   const [rating, setRating] = useState(5);
   const [tasteRating, setTasteRating] = useState(4);
   const [packRating, setPackRating] = useState(5);
   const [deliveryRating, setDeliveryRating] = useState(4);
   const [content, setContent] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>(['味道好']);
+  const [selectedTags, setSelectedTags] = useState<string[]>([t('review.tags.tasty')]);
   const submitMut = useSubmitReview();
+
+  const QUICK_TAGS = [
+    t('review.tags.tasty'),
+    t('review.tags.generous'),
+    t('review.tags.fastDelivery'),
+    t('review.tags.goodPackaging'),
+    t('review.tags.valueForMoney'),
+  ];
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+      prev.includes(tag) ? prev.filter((tg) => tg !== tag) : [...prev, tag],
     );
   };
 
@@ -34,7 +44,7 @@ export default function ReviewSubmitScreen({ route, navigation }: any) {
       },
       {
         onSuccess: () => {
-          Alert.alert('提示', '评价成功');
+          Alert.alert(t('common.tip'), t('review.submitSuccess'));
           navigation.goBack();
         },
       },
@@ -57,40 +67,40 @@ export default function ReviewSubmitScreen({ route, navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>评价订单</Text>
+        <Text style={styles.headerTitle}>{t('review.title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView style={styles.content}>
         {/* Overall Rating */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>请为本次服务打分</Text>
+          <Text style={styles.sectionTitle}>{t('review.rateService')}</Text>
           <StarRow value={rating} onChange={setRating} />
-          <Text style={styles.ratingText}>{rating >= 4 ? '满意' : rating >= 3 ? '一般' : '不满意'}</Text>
+          <Text style={styles.ratingText}>{rating >= 4 ? t('review.satisfied') : rating >= 3 ? t('review.neutral') : t('review.dissatisfied')}</Text>
         </View>
 
         {/* Dimension Ratings */}
         <View style={styles.section}>
           <View style={styles.dimRow}>
-            <Text style={styles.dimLabel}>口味</Text>
+            <Text style={styles.dimLabel}>{t('review.taste')}</Text>
             <StarRow value={tasteRating} onChange={setTasteRating} />
           </View>
           <View style={styles.dimRow}>
-            <Text style={styles.dimLabel}>包装</Text>
+            <Text style={styles.dimLabel}>{t('review.packaging')}</Text>
             <StarRow value={packRating} onChange={setPackRating} />
           </View>
           <View style={styles.dimRow}>
-            <Text style={styles.dimLabel}>配送</Text>
+            <Text style={styles.dimLabel}>{t('review.delivery')}</Text>
             <StarRow value={deliveryRating} onChange={setDeliveryRating} />
           </View>
         </View>
 
         {/* Content */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>评价内容</Text>
+          <Text style={styles.sectionTitle}>{t('review.content')}</Text>
           <TextInput
             style={styles.textInput}
-            placeholder="分享你的用餐体验..."
+            placeholder={t('review.contentPlaceholder')}
             value={content}
             onChangeText={setContent}
             multiline
@@ -100,7 +110,7 @@ export default function ReviewSubmitScreen({ route, navigation }: any) {
 
         {/* Quick Tags */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>快速标签</Text>
+          <Text style={styles.sectionTitle}>{t('review.quickTags')}</Text>
           <View style={styles.tagRow}>
             {QUICK_TAGS.map((tag) => (
               <TouchableOpacity
@@ -119,7 +129,7 @@ export default function ReviewSubmitScreen({ route, navigation }: any) {
 
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-          <Text style={styles.submitText}>提交评价</Text>
+          <Text style={styles.submitText}>{t('review.submit')}</Text>
         </TouchableOpacity>
       </View>
     </View>
