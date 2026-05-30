@@ -1,17 +1,16 @@
 import axios from 'axios';
-import { createMMKV } from 'react-native-mmkv';
-
-const storage = createMMKV();
+import { getStorage } from '../utils/storage';
+import { API_BASE_URL } from '../config/api';
 
 const api = axios.create({
-  baseURL: 'http://10.0.2.2:3000/api/v1', // Android 模拟器访问本机
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
 });
 
 // 请求拦截器：注入 token
 api.interceptors.request.use((config) => {
-  const token = storage.getString('accessToken');
+  const token = getStorage().getString('accessToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -25,20 +24,26 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      const refreshToken = storage.getString('refreshToken');
+      const refreshToken = getStorage().getString('refreshToken');
       if (refreshToken) {
         try {
-          const { data } = await axios.post('http://10.0.2.2:3000/api/v1/auth/refresh', { refreshToken });
-          storage.set('accessToken', data.data.accessToken);
+          const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+          getStorage().set('accessToken', data.data.accessToken);
           originalRequest.headers.Authorization = `Bearer ${data.data.accessToken}`;
           return api(originalRequest);
         } catch {
-          storage.remove('accessToken');
-          storage.remove('refreshToken');
+          getStorage().remove('accessToken');
+          getStorage().remove('refreshToken');
         }
       }
     }
-    return Promise.reject(error.response?.data || error);
+    const message =
+      error.response?.data?.message ||
+      (error.code === 'ECONNABORTED' ? '请求超时，请检查网络' : null) ||
+      (error.message === 'Network Error' ? '无法连接服务器，请确认后端已启动' : null) ||
+      error.message ||
+      '请求失败';
+    return Promise.reject({ message, ...error.response?.data });
   },
 );
 
@@ -179,8 +184,11 @@ export const analyticsApi = {
 
 // ============ 支付 ============
 export const paymentApi = {
+  mode: () => api.get('/payment/mode'),
   mockPay: (orderNo: string) => api.post(`/payment/mock-pay/${orderNo}`),
   status: (orderNo: string) => api.get(`/payment/status/${orderNo}`),
+  sync: (orderNo: string, alipayOutTradeNo?: string) =>
+    api.post(`/payment/sync/${orderNo}`, alipayOutTradeNo ? { alipayOutTradeNo } : {}),
   callback: (data: any) => api.post('/payment/callback', data),
 };
 
@@ -197,12 +205,11 @@ export const createChatStream = async (
   imageUrl?: string,
   webSearch?: boolean,
 ) => {
-  const token = storage.getString('accessToken');
+  const token = getStorage().getString('accessToken');
 
   return new Promise<void>((resolve) => {
     const xhr = new XMLHttpRequest();
-    const url = 'http://10.0.2.2:3000/api/v1/ai/chat';
-    console.log('[AI] XHR opening:', url, 'token:', token ? 'yes' : 'no');
+    const url = `${API_BASE_URL}/ai/chat`;
     xhr.open('POST', url, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -210,86 +217,120 @@ export const createChatStream = async (
 
     let buffer = '';
     let lastPos = 0;
-    let done = false;
+    let finished = false;
+    let lastConversationId = conversationId ?? 0;
+    let receivedChunks = false;
 
-    // Use onreadystatechange for more reliable event firing
-    xhr.onreadystatechange = () => {
-      console.log('[AI] XHR readyState:', xhr.readyState, 'status:', xhr.status);
-      // readyState 3 = LOADING (partial data received)
-      if (xhr.readyState === 3 && !done) {
-        const text = xhr.responseText;
-        if (text.length > lastPos) {
-          buffer += text.slice(lastPos);
-          lastPos = text.length;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      resolve();
+    };
 
-          const lines = buffer.split('\n');
-          // Keep incomplete last line in buffer
-          const lastLine = lines[lines.length - 1];
-          if (!lastLine.endsWith('\n') && !lastLine.includes('done')) {
-            buffer = lastLine;
-            lines.pop();
-          } else {
-            buffer = '';
-          }
+    const handleEvent = (data: any) => {
+      if (data.conversationId) {
+        lastConversationId = data.conversationId;
+      }
+      if (data.type === 'thinking' && data.thinkingChunk) {
+        onThinking?.(data.thinkingChunk);
+      } else if (data.type === 'search' && data.searchResults) {
+        onSearchResults?.(data.searchResults);
+      } else if (data.type === 'chunk' && data.chunk) {
+        receivedChunks = true;
+        onChunk(data.chunk);
+      } else if (data.chunk) {
+        receivedChunks = true;
+        onChunk(data.chunk);
+      } else if (data.done) {
+        onDone(data.conversationId ?? lastConversationId);
+        finish();
+      } else if (data.error) {
+        onError(data.error);
+        finish();
+      }
+    };
 
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith('data: ')) continue;
-            const payload = trimmed.slice(6);
-            if (payload === '[DONE]') continue;
+    const processLines = (text: string) => {
+      buffer += text;
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-            try {
-              const data = JSON.parse(payload);
-              if (data.type === 'thinking' && data.thinkingChunk) {
-                onThinking?.(data.thinkingChunk);
-              } else if (data.type === 'search' && data.searchResults) {
-                onSearchResults?.(data.searchResults);
-              } else if (data.chunk !== undefined && data.chunk !== '') {
-                onChunk(data.chunk);
-              } else if (data.done) {
-                done = true;
-                onDone(data.conversationId);
-                resolve();
-              } else if (data.error) {
-                done = true;
-                onError(data.error);
-                resolve();
-              }
-            } catch {}
-          }
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data: ')) continue;
+        const payload = trimmed.slice(6);
+        if (payload === '[DONE]') continue;
+
+        try {
+          handleEvent(JSON.parse(payload));
+        } catch {
+          // ignore malformed SSE lines
         }
       }
     };
 
+    const readNewContent = () => {
+      const text = xhr.responseText;
+      if (text.length > lastPos) {
+        processLines(text.slice(lastPos));
+        lastPos = text.length;
+      }
+    };
+
+    xhr.onreadystatechange = () => {
+      if (finished) return;
+      if (xhr.readyState === 3 || xhr.readyState === 4) {
+        readNewContent();
+      }
+    };
+
     xhr.onload = () => {
-      if (done) return;
-      console.log('[AI] XHR onload, status:', xhr.status);
+      if (finished) return;
+      readNewContent();
+
       if (xhr.status === 401) {
         onError('登录已过期，请重新登录');
-      } else if (xhr.status >= 400) {
-        // Try to parse error response
+        finish();
+        return;
+      }
+
+      if (xhr.status >= 400) {
         let errorMsg = `请求失败: ${xhr.status}`;
         try {
           const resp = JSON.parse(xhr.responseText);
           if (resp.message) errorMsg = resp.message;
-        } catch {}
+        } catch {
+          // response may be SSE text, not JSON
+        }
         onError(errorMsg);
+        finish();
+        return;
       }
-      resolve();
+
+      if (!finished) {
+        if (receivedChunks || lastConversationId) {
+          onDone(lastConversationId);
+        } else {
+          onError('AI 服务暂时不可用');
+        }
+        finish();
+      }
     };
 
     xhr.onerror = () => {
-      if (!done) onError('网络连接失败');
-      resolve();
+      if (!finished) {
+        onError('网络连接失败');
+        finish();
+      }
     };
 
     xhr.ontimeout = () => {
-      if (!done) onError('请求超时，请重试');
-      resolve();
+      if (!finished) {
+        onError('请求超时，请重试');
+        finish();
+      }
     };
 
-    const body = JSON.stringify({ message, conversationId, thinkingEnabled, imageUrl, webSearch });
-    console.log('[AI] XHR sending:', body);
-    xhr.send(body);
+    xhr.send(JSON.stringify({ message, conversationId, thinkingEnabled, imageUrl, webSearch }));
   });
 };

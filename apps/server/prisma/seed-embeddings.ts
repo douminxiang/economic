@@ -63,7 +63,7 @@ async function main() {
       const embedding = await generateEmbedding(textToEmbed);
       await prisma.shop.update({
         where: { id: shop.id },
-        data: { embedding: JSON.stringify(embedding) },
+        data: { embedding },
       });
       count++;
       console.log(`[${count}/${shops.length}] Embedded: ${shop.name}`);

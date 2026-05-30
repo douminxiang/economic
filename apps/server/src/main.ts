@@ -15,6 +15,9 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
   app.enableCors();
 
+  // 支付宝异步通知使用 application/x-www-form-urlencoded
+  app.use(express.urlencoded({ extended: true }));
+
   // Serve uploaded files in mock mode
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 

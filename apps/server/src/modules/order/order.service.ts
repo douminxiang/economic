@@ -241,28 +241,52 @@ export class OrderService {
     });
     if (!order) throw new NotFoundException('订单不存在或状态异常');
 
-    // Create payment via PaymentService
+    const normalizedMethod = payMethod === 'alipay' ? 'alipay' : payMethod;
+
+    // 微信/银联暂用 mock 即时支付
+    if (normalizedMethod !== 'alipay' || this.paymentService.isMockMode) {
+      const paymentResult = await this.paymentService.createPayment(
+        order.orderNo,
+        Number(order.payAmount),
+        `订单-${order.orderNo}`,
+      );
+
+      if (paymentResult.mockMode) {
+        await this.prisma.order.update({
+          where: { id },
+          data: { status: 1, payMethod: normalizedMethod, payTime: new Date() },
+        });
+        await this.emitStatusChange(id, userId, 1);
+      }
+
+      return {
+        orderNo: order.orderNo,
+        alipayOutTradeNo: paymentResult.alipayOutTradeNo,
+        payMethod: normalizedMethod,
+        payUrl: paymentResult.payUrl,
+        mockMode: paymentResult.mockMode,
+      };
+    }
+
+    await this.prisma.order.update({
+      where: { id },
+      data: { payMethod: 'alipay' },
+    });
+
     const paymentResult = await this.paymentService.createPayment(
       order.orderNo,
       Number(order.payAmount),
       `订单-${order.orderNo}`,
     );
 
-    // If mock mode or direct pay, update order immediately
-    if (paymentResult.mockMode) {
-      await this.prisma.order.update({
-        where: { id },
-        data: { status: 1, payMethod, payTime: new Date() },
-      });
-      // Emit status change: paid (1)
-      await this.emitStatusChange(id, userId, 1);
-    }
-
     return {
-      ...order,
-      payMethod,
+      orderNo: order.orderNo,
+      alipayOutTradeNo: paymentResult.alipayOutTradeNo,
+      payMethod: 'alipay',
       payUrl: paymentResult.payUrl,
-      mockMode: paymentResult.mockMode,
+      payFormHtml: paymentResult.payFormHtml,
+      sandboxReady: paymentResult.sandboxReady,
+      mockMode: false,
     };
   }
 

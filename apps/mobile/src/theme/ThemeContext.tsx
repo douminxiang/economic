@@ -1,9 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useColorScheme } from 'react-native';
-import { createMMKV } from 'react-native-mmkv';
+import { getStorage } from '../utils/storage';
 import { lightColors, darkColors, ColorScheme } from './tokens';
-
-const storage = createMMKV();
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -24,7 +22,7 @@ const ThemeContext = createContext<ThemeContextValue>({
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
-    const saved = storage.getString('themeMode');
+    const saved = getStorage().getString('themeMode');
     return (saved as ThemeMode) || 'system';
   });
 
@@ -36,7 +34,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setThemeMode = useCallback((mode: ThemeMode) => {
     setThemeModeState(mode);
-    storage.set('themeMode', mode);
+    getStorage().set('themeMode', mode);
   }, []);
 
   return (

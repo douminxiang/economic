@@ -1,23 +1,29 @@
 import api from '../services/api';
-import { createMMKV } from 'react-native-mmkv';
+import { getStorage } from './storage';
 
-const storage = createMMKV();
-let analyticsEnabled = storage.getString('analyticsEnabled') !== 'false';
+let analyticsEnabled: boolean | null = null;
+
+function readAnalyticsEnabled() {
+  if (analyticsEnabled === null) {
+    analyticsEnabled = getStorage().getString('analyticsEnabled') !== 'false';
+  }
+  return analyticsEnabled;
+}
 
 export const setAnalyticsEnabled = (enabled: boolean) => {
   analyticsEnabled = enabled;
-  storage.set('analyticsEnabled', String(enabled));
+  getStorage().set('analyticsEnabled', String(enabled));
 };
 
-export const isAnalyticsEnabled = () => analyticsEnabled;
+export const isAnalyticsEnabled = () => readAnalyticsEnabled();
 
 export const trackPageView = (screenName: string) => {
-  if (!analyticsEnabled) return;
+  if (!readAnalyticsEnabled()) return;
   track('page_view', screenName);
 };
 
 export const trackEvent = (eventName: string, properties?: Record<string, any>) => {
-  if (!analyticsEnabled) return;
+  if (!readAnalyticsEnabled()) return;
   track('custom', eventName, properties);
 };
 

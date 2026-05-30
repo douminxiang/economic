@@ -1,16 +1,15 @@
 import { io, Socket } from 'socket.io-client';
-import { createMMKV } from 'react-native-mmkv';
-
-const storage = createMMKV();
+import { getStorage } from '../utils/storage';
+import { API_ORIGIN } from '../config/api';
 let socket: Socket | null = null;
 
 export const getSocket = (): Socket | null => socket;
 
 export const connectSocket = () => {
-  const token = storage.getString('accessToken');
+  const token = getStorage().getString('accessToken');
   if (!token || socket?.connected) return;
 
-  socket = io('http://10.0.2.2:3000', {
+  socket = io(API_ORIGIN, {
     auth: { token },
     transports: ['websocket'],
     reconnection: true,

@@ -1,6 +1,8 @@
 // apps/server/src/modules/ai/ai.controller.ts
 import { Controller, Post, Get, Body, Param, Logger, UseGuards, Res } from '@nestjs/common';
 import type { Response } from 'express';
+
+type FlushableResponse = Response & { flush?: () => void };
 import { AiService } from './ai.service';
 import { SearchService } from './search.service';
 import { ChatDto } from './dto/chat.dto';
@@ -21,7 +23,7 @@ export class AiController {
   async chat(
     @CurrentUser() user: any,
     @Body() dto: ChatDto,
-    @Res({ passthrough: true }) res: any,
+    @Res() res: FlushableResponse,
   ) {
     this.logger.log(`AI chat request: user=${user.id}, message=${dto.message?.slice(0, 50)}`);
     try {
@@ -34,7 +36,8 @@ export class AiController {
         dto.webSearch,
       );
 
-      // SSE headers - bypass interceptor
+      // SSE headers — manual response, bypass global JSON interceptor
+      res.status(200);
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('Connection', 'keep-alive');

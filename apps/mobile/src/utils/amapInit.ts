@@ -1,7 +1,6 @@
 import { init } from 'react-native-amap-geolocation';
 import { Platform } from 'react-native';
-
-const AMAP_ANDROID_KEY = 'fa9254f9d9fd8e972fdcb6130d7b7cc6';
+import { AMAP_ANDROID_KEY } from '../config/amap';
 
 let initialized = false;
 let initPromise: Promise<void> | null = null;

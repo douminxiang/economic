@@ -4,9 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useShopList } from '../hooks';
 import { spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
-import { createMMKV } from 'react-native-mmkv';
+import { getStorage } from '../utils/storage';
 
-const storage = createMMKV();
 const HISTORY_KEY = 'search_history';
 const MAX_HISTORY = 10;
 
@@ -47,7 +46,7 @@ export default function SearchScreen({ navigation }: any) {
   const shops = shopsData?.pages?.flatMap((p: any) => p.data.items) || [];
 
   const getHistory = (): string[] => {
-    try { return JSON.parse(storage.getString(HISTORY_KEY) || '[]'); } catch { return []; }
+    try { return JSON.parse(getStorage().getString(HISTORY_KEY) || '[]'); } catch { return []; }
   };
   const [history, setHistory] = useState<string[]>(getHistory());
 
@@ -56,12 +55,12 @@ export default function SearchScreen({ navigation }: any) {
     setKeyword(text);
     const newHistory = [text, ...history.filter((h) => h !== text)].slice(0, MAX_HISTORY);
     setHistory(newHistory);
-    storage.set(HISTORY_KEY, JSON.stringify(newHistory));
+    getStorage().set(HISTORY_KEY, JSON.stringify(newHistory));
   };
 
   const clearHistory = () => {
     setHistory([]);
-    storage.remove(HISTORY_KEY);
+    getStorage().remove(HISTORY_KEY);
   };
 
   return (

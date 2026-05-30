@@ -60,7 +60,8 @@ export class UploadService {
 
     // Return a local URL path (served by static middleware or dev proxy)
     const port = this.configService.get('PORT', 3000);
-    const url = `http://localhost:${port}/uploads/${filename}`;
+    const baseUrl = this.configService.get('PUBLIC_BASE_URL', `http://localhost:${port}`);
+    const url = `${baseUrl.replace(/\/$/, '')}/uploads/${filename}`;
     return { url };
   }
 

@@ -1,14 +1,13 @@
 import { create } from 'zustand';
-import { createMMKV } from 'react-native-mmkv';
+import { getStorage } from '../utils/storage';
 import api from '../services/api';
-import type { User, AuthResponse } from '@economic/shared';
-
-const storage = createMMKV();
+import type { User } from '@economic/shared';
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  hydrateFromStorage: () => void;
   login: (phone: string, password: string) => Promise<void>;
   register: (phone: string, password: string, nickname?: string) => Promise<void>;
   smsLogin: (phone: string, code: string) => Promise<void>;
@@ -17,18 +16,26 @@ interface AuthState {
   updateUser: (data: Partial<User>) => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  isAuthenticated: !!storage.getString('accessToken'),
+  isAuthenticated: false,
   isLoading: false,
+
+  hydrateFromStorage: () => {
+    const token = getStorage().getString('accessToken');
+    set({ isAuthenticated: !!token });
+    if (token && !get().user) {
+      get().loadUser();
+    }
+  },
 
   login: async (phone, password) => {
     set({ isLoading: true });
     try {
       const res: any = await api.post('/auth/login', { phone, password });
       const { accessToken, refreshToken, user } = res.data;
-      storage.set('accessToken', accessToken);
-      storage.set('refreshToken', refreshToken);
+      getStorage().set('accessToken', accessToken);
+      getStorage().set('refreshToken', refreshToken);
       set({ user, isAuthenticated: true, isLoading: false });
     } catch (error) {
       set({ isLoading: false });
@@ -41,8 +48,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const res: any = await api.post('/auth/register', { phone, password, nickname });
       const { accessToken, refreshToken, user } = res.data;
-      storage.set('accessToken', accessToken);
-      storage.set('refreshToken', refreshToken);
+      getStorage().set('accessToken', accessToken);
+      getStorage().set('refreshToken', refreshToken);
       set({ user, isAuthenticated: true, isLoading: false });
     } catch (error) {
       set({ isLoading: false });
@@ -55,8 +62,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const res: any = await api.post('/auth/sms-login', { phone, code });
       const { accessToken, refreshToken, user } = res.data;
-      storage.set('accessToken', accessToken);
-      storage.set('refreshToken', refreshToken);
+      getStorage().set('accessToken', accessToken);
+      getStorage().set('refreshToken', refreshToken);
       set({ user, isAuthenticated: true, isLoading: false });
     } catch (error) {
       set({ isLoading: false });
@@ -65,8 +72,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-    storage.remove('accessToken');
-    storage.remove('refreshToken');
+    getStorage().remove('accessToken');
+    getStorage().remove('refreshToken');
     set({ user: null, isAuthenticated: false });
   },
 

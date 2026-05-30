@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,16 @@ import {
   Easing,
   Modal,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { usePayment } from '../hooks';
+import PaymentWebView from '../components/PaymentWebView';
+import { orderApi } from '../services/api';
 import { fontSize, spacing, borderRadius, shadows } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 
-type PayPhase = 'idle' | 'opening' | 'verifying' | 'success';
+type PayPhase = 'idle' | 'opening' | 'webview' | 'verifying' | 'success';
 
 export default function PaymentScreen({ navigation, route }: any) {
   const { t } = useTranslation();
@@ -22,7 +25,23 @@ export default function PaymentScreen({ navigation, route }: any) {
   const { orderId, amount } = route.params;
   const [selectedMethod, setSelectedMethod] = useState('alipay');
   const [phase, setPhase] = useState<PayPhase>('idle');
-  const { initiatePayment } = usePayment();
+  const [payUrl, setPayUrl] = useState('');
+  const [payFormHtml, setPayFormHtml] = useState('');
+  const [orderNo, setOrderNo] = useState('');
+  const [alipayOutTradeNo, setAlipayOutTradeNo] = useState('');
+  const { preparePayment, confirmPayment, mockCompletePayment } = usePayment();
+
+  const applyPayResult = useCallback((result: {
+    orderNo: string;
+    alipayOutTradeNo?: string;
+    payUrl?: string;
+    payFormHtml?: string;
+  }) => {
+    setOrderNo(result.orderNo);
+    setAlipayOutTradeNo(result.alipayOutTradeNo || result.orderNo);
+    setPayUrl(result.payUrl || '');
+    setPayFormHtml(result.payFormHtml || '');
+  }, []);
 
   const PAYMENT_METHODS = [
     { key: 'alipay', name: t('payment.alipay'), badge: '支', color: '#1677FF', recommended: true },
@@ -105,6 +124,12 @@ export default function PaymentScreen({ navigation, route }: any) {
           gap: 8,
         },
         payBtnText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+        mockBtn: {
+          marginTop: spacing.sm,
+          alignItems: 'center',
+          paddingVertical: spacing.sm,
+        },
+        mockBtnText: { fontSize: fontSize.sm, color: colors.textSecondary },
         secureTip: { fontSize: 11, color: colors.textLight, textAlign: 'center', marginTop: 12 },
         overlay: {
           flex: 1,
@@ -174,16 +199,12 @@ export default function PaymentScreen({ navigation, route }: any) {
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     Animated.parallel([
       Animated.spring(scaleAnim, { toValue: 1, friction: 6, useNativeDriver: true }),
       Animated.timing(opacityAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
     ]).start();
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
   }, []);
 
   useEffect(() => {
@@ -198,22 +219,88 @@ export default function PaymentScreen({ navigation, route }: any) {
 
   const spin = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
+  const finishSuccess = useCallback(() => {
+    setPhase('success');
+    Animated.spring(checkScale, { toValue: 1, friction: 4, useNativeDriver: true }).start();
+  }, [checkScale]);
+
   const handlePay = async () => {
     setPhase('opening');
-    timeoutRef.current = setTimeout(() => setPhase('idle'), 30000);
-
     try {
-      await initiatePayment(orderId, selectedMethod);
-      setPhase('verifying');
-      setTimeout(() => {
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        setPhase('success');
-        Animated.spring(checkScale, { toValue: 1, friction: 4, useNativeDriver: true }).start();
-      }, 1200);
-    } catch {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      const result = await preparePayment(orderId, selectedMethod);
+
+      if (result.mockMode) {
+        finishSuccess();
+        return;
+      }
+
+      if (selectedMethod === 'alipay' && (result.payUrl || result.payFormHtml)) {
+        applyPayResult(result);
+        setPhase('webview');
+        return;
+      }
+
+      throw new Error('暂不支持该支付方式');
+    } catch (err: any) {
       setPhase('idle');
+      Alert.alert('支付失败', err?.message || '请重试');
     }
+  };
+
+  const handleRefreshPay = useCallback(async () => {
+    const result = await preparePayment(orderId, selectedMethod);
+    if (result.mockMode) {
+      throw new Error('已进入模拟支付模式');
+    }
+    if (!result.payUrl && !result.payFormHtml) {
+      throw new Error('未获取到支付链接');
+    }
+    applyPayResult(result);
+  }, [applyPayResult, orderId, preparePayment, selectedMethod]);
+
+  const handleWebViewComplete = async () => {
+    setPhase('verifying');
+    try {
+      await confirmPayment(orderNo, alipayOutTradeNo || undefined);
+      setPayUrl('');
+      setPayFormHtml('');
+      setAlipayOutTradeNo('');
+      finishSuccess();
+    } catch (err: any) {
+      setPhase('webview');
+      Alert.alert(
+        '尚未完成支付',
+        err?.message || '请先在支付宝页面完成付款，再点击「我已完成付款」',
+      );
+    }
+  };
+
+  const handleMockPay = () => {
+    Alert.alert('模拟支付', '沙箱环境异常时使用，将直接标记订单为已支付。', [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '确认',
+        onPress: async () => {
+          setPhase('verifying');
+          try {
+            let no = orderNo;
+            if (!no) {
+              const detail: any = await orderApi.detail(orderId);
+              no = detail?.data?.orderNo ?? detail?.orderNo;
+            }
+            if (!no) throw new Error('无法获取订单号');
+            await mockCompletePayment(no);
+            setPayUrl('');
+            setPayFormHtml('');
+            setAlipayOutTradeNo('');
+            finishSuccess();
+          } catch (err: any) {
+            setPhase('idle');
+            Alert.alert('失败', err?.message || '模拟支付失败');
+          }
+        },
+      },
+    ]);
   };
 
   if (phase === 'success') {
@@ -289,8 +376,27 @@ export default function PaymentScreen({ navigation, route }: any) {
         <TouchableOpacity style={styles.payBtn} disabled={phase !== 'idle'} onPress={handlePay}>
           <Text style={styles.payBtnText}>🔒 {t('payment.payNow')} ¥{Number(amount).toFixed(2)}</Text>
         </TouchableOpacity>
+        {selectedMethod === 'alipay' ? (
+          <TouchableOpacity style={styles.mockBtn} disabled={phase !== 'idle'} onPress={handleMockPay}>
+            <Text style={styles.mockBtnText}>{t('payment.mockFallback')}</Text>
+          </TouchableOpacity>
+        ) : null}
         <Text style={styles.secureTip}>{t('payment.secureTip')}</Text>
       </View>
+
+      <PaymentWebView
+        visible={phase === 'webview'}
+        payUrl={payUrl}
+        payFormHtml={payFormHtml}
+        onClose={() => {
+          setPhase('idle');
+          setPayUrl('');
+          setPayFormHtml('');
+          setAlipayOutTradeNo('');
+        }}
+        onCheckPayment={handleWebViewComplete}
+        onRefreshPay={handleRefreshPay}
+      />
 
       <Modal visible={phase === 'opening' || phase === 'verifying'} transparent animationType="fade">
         <View style={styles.overlay}>

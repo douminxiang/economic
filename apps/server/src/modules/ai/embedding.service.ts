@@ -70,8 +70,9 @@ export class EmbeddingService {
     });
 
     const scored = shops.map(shop => {
-      const vecScore = shop.embedding
-        ? this.cosineSimilarity(queryEmbedding, shop.embedding as number[])
+      const shopEmbedding = this.parseEmbedding(shop.embedding);
+      const vecScore = shopEmbedding
+        ? this.cosineSimilarity(queryEmbedding, shopEmbedding)
         : 0;
       const kwScore = this.keywordScore(shop, keywords);
       return { ...shop, _score: vecScore * 0.7 + kwScore * 0.3 };
@@ -79,5 +80,19 @@ export class EmbeddingService {
 
     scored.sort((a, b) => b._score - a._score);
     return scored.slice(0, limit);
+  }
+
+  private parseEmbedding(raw: unknown): number[] | null {
+    if (!raw) return null;
+    if (Array.isArray(raw)) return raw as number[];
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
   }
 }
