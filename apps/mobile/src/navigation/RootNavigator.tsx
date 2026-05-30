@@ -9,7 +9,7 @@ export const RootNavigator = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return <Loading />;
+    return <Loading fullScreen />;
   }
 
   return (

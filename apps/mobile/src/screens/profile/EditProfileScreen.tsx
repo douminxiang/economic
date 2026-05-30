@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { Input, Button } from '../../components';
-import { spacing, fontSize, borderRadius } from '../../theme/tokens';
+import { spacing, fontSize, borderRadius, colors } from '../../theme/tokens';
 import { useTheme } from '../../theme/ThemeContext';
 
 export default function EditProfileScreen({ navigation }: any) {

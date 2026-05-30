@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFavoriteList, useToggleFavorite } from '../hooks';
-import { spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { spacing, fontSize, borderRadius, shadows, colors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 import { EmptyView } from '../components';
 

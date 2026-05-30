@@ -2,6 +2,7 @@
  * Seed embeddings for all active shops.
  * Run: npx ts-node prisma/seed-embeddings.ts
  */
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 

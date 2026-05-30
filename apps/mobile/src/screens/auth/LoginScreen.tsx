@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
 import { Input, Button } from '../../components';
 import { useAuth } from '../../hooks/useAuth';
-import { spacing, fontSize } from '../../theme/tokens';
+import { spacing, fontSize, colors } from '../../theme/tokens';
 import { useTheme } from '../../theme/ThemeContext';
 
 const passwordSchema = z.object({

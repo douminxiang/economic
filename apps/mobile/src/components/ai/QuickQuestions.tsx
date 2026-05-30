@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { fontSize, spacing, borderRadius } from '../../theme/tokens';
@@ -11,6 +11,32 @@ interface Props {
 export const QuickQuestions: React.FC<Props> = ({ onSelect }) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
+        title: {
+          fontSize: fontSize.sm,
+          fontWeight: '600',
+          color: colors.textSecondary,
+          marginBottom: spacing.md,
+          marginLeft: 4,
+        },
+        grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+        chip: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.sm + 2,
+          borderRadius: borderRadius.full,
+          gap: 6,
+        },
+        chipIcon: { fontSize: 16 },
+        chipText: { fontSize: fontSize.sm, color: colors.text, fontWeight: '500' },
+      }),
+    [colors],
+  );
 
   const QUICK_QUESTIONS = [
     { icon: '🍜', text: t('ai.quickQuestions.nearby'), color: '#FFF3ED' },
@@ -40,36 +66,3 @@ export const QuickQuestions: React.FC<Props> = ({ onSelect }) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  title: {
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-    marginLeft: 4,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: borderRadius.full,
-    gap: 6,
-  },
-  chipIcon: { fontSize: 16 },
-  chipText: {
-    fontSize: fontSize.sm,
-    color: colors.text,
-    fontWeight: '500',
-  },
-});

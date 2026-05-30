@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSubmitReview } from '../hooks';
-import { spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
+import { spacing, fontSize, borderRadius, shadows, colors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 
 export default function ReviewSubmitScreen({ route, navigation }: any) {

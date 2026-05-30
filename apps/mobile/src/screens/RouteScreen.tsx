@@ -5,7 +5,7 @@ import { MapView, Marker, Polyline } from 'react-native-amap3d';
 import { Geolocation } from 'react-native-amap-geolocation';
 import { useDirection } from '../hooks/useAmap';
 import { initAmapGeolocation } from '../utils/amapInit';
-import { fontSize, spacing, borderRadius } from '../theme/tokens';
+import { fontSize, spacing, borderRadius, colors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 
 const DEFAULT_LOCATION = { latitude: 30.2741, longitude: 120.1551 };

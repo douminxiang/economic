@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { spacing, fontSize, borderRadius } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
@@ -23,6 +23,28 @@ export const Button: React.FC<ButtonProps> = ({
   textStyle,
 }) => {
   const { colors } = useTheme();
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        base: {
+          paddingVertical: spacing.md,
+          paddingHorizontal: spacing.lg,
+          borderRadius: borderRadius.md,
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: 48,
+        },
+        primary: { backgroundColor: colors.primary },
+        secondary: { backgroundColor: colors.secondary },
+        outline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.primary },
+        disabled: { opacity: 0.5 },
+        text: { color: '#FFF', fontSize: fontSize.md, fontWeight: '600' },
+        outlineText: { color: colors.primary },
+        disabledText: { color: colors.textLight },
+      }),
+    [colors],
+  );
 
   const buttonStyle = [
     styles.base,
@@ -50,21 +72,3 @@ export const Button: React.FC<ButtonProps> = ({
     </TouchableOpacity>
   );
 };
-
-const styles = StyleSheet.create({
-  base: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
-  },
-  primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: colors.secondary },
-  outline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.primary },
-  disabled: { opacity: 0.5 },
-  text: { color: '#FFF', fontSize: fontSize.md, fontWeight: '600' },
-  outlineText: { color: colors.primary },
-  disabledText: { color: colors.textLight },
-});

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
-import { spacing, fontSize, borderRadius } from '../theme/tokens';
+import { spacing, fontSize } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 
 interface HeaderProps {
@@ -12,6 +12,35 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ title, onBack, rightComponent, style }) => {
   const { colors } = useTheme();
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.sm,
+          backgroundColor: colors.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+          minHeight: 56,
+        },
+        left: { width: 40 },
+        backButton: { padding: spacing.xs },
+        backText: { fontSize: fontSize.xl, color: colors.primary },
+        title: {
+          flex: 1,
+          fontSize: fontSize.lg,
+          fontWeight: '600',
+          color: colors.text,
+          textAlign: 'center',
+        },
+        right: { width: 40, alignItems: 'flex-end' },
+      }),
+    [colors],
+  );
 
   return (
     <View style={[styles.container, style]}>
@@ -31,38 +60,3 @@ export const Header: React.FC<HeaderProps> = ({ title, onBack, rightComponent, s
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    minHeight: 56,
-  },
-  left: {
-    width: 40,
-  },
-  backButton: {
-    padding: spacing.xs,
-  },
-  backText: {
-    fontSize: fontSize.xl,
-    color: colors.primary,
-  },
-  title: {
-    flex: 1,
-    fontSize: fontSize.lg,
-    fontWeight: '600',
-    color: colors.text,
-    textAlign: 'center',
-  },
-  right: {
-    width: 40,
-    alignItems: 'flex-end',
-  },
-});

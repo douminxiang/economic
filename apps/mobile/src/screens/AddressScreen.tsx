@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAddressList, useDeleteAddress } from '../hooks/useAddress';
-import { fontSize } from '../theme/tokens';
+import { fontSize, colors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 
 export default function AddressScreen({ navigation }: any) {

@@ -50,6 +50,39 @@ export function RegionPicker({ visible, onClose, onConfirm, initialProvince, ini
 
   const getHeaderTitle = () => step === 'province' ? t('region.selectProvince') : step === 'city' ? t('region.selectCity') : t('region.selectDistrict');
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+        container: { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '70%' },
+        header: {
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border,
+        },
+        headerTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
+        closeText: { fontSize: fontSize.sm, color: colors.textSecondary, width: 40 },
+        doneText: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '600', width: 40, textAlign: 'right' },
+        breadcrumb: {
+          flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap',
+          padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border,
+        },
+        breadItem: { fontSize: fontSize.sm, color: colors.text },
+        breadActive: { color: colors.primary, fontWeight: '600' },
+        breadPlaceholder: { color: colors.textLight },
+        breadSep: { fontSize: fontSize.sm, color: colors.textLight, marginHorizontal: 2 },
+        item: {
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          paddingHorizontal: spacing.lg, paddingVertical: 14,
+        },
+        itemActive: { backgroundColor: colors.primaryLight + '33' },
+        itemText: { fontSize: fontSize.md, color: colors.text },
+        itemTextActive: { color: colors.primary, fontWeight: '600' },
+        check: { fontSize: fontSize.md, color: colors.primary, fontWeight: '600' },
+        separator: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: spacing.lg },
+      }),
+    [colors],
+  );
+
   const listData = step === 'province'
     ? REGIONS.map((p) => p.name)
     : step === 'city'
@@ -142,32 +175,3 @@ export function RegionPicker({ visible, onClose, onConfirm, initialProvince, ini
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
-  container: { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '70%' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  headerTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
-  closeText: { fontSize: fontSize.sm, color: colors.textSecondary, width: 40 },
-  doneText: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '600', width: 40, textAlign: 'right' },
-  breadcrumb: {
-    flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap',
-    padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  breadItem: { fontSize: fontSize.sm, color: colors.text },
-  breadActive: { color: colors.primary, fontWeight: '600' },
-  breadPlaceholder: { color: colors.textLight },
-  breadSep: { fontSize: fontSize.sm, color: colors.textLight, marginHorizontal: 2 },
-  item: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg, paddingVertical: 14,
-  },
-  itemActive: { backgroundColor: colors.primaryLight + '33' },
-  itemText: { fontSize: fontSize.md, color: colors.text },
-  itemTextActive: { color: colors.primary, fontWeight: '600' },
-  check: { fontSize: fontSize.md, color: colors.primary, fontWeight: '600' },
-  separator: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: spacing.lg },
-});

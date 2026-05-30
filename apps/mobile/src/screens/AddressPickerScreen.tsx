@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert 
 import { useTranslation } from 'react-i18next';
 import { useCreateAddress, useUpdateAddress } from '../hooks/useAddress';
 import { RegionPicker } from '../components/RegionPicker';
-import { fontSize, spacing, borderRadius } from '../theme/tokens';
+import { fontSize, spacing, borderRadius, colors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 
 export default function AddressPickerScreen({ route, navigation }: any) {

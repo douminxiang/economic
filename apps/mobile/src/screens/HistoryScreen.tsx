@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, FlatList, Text, TouchableOpacity, Image, StyleSheet, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { spacing, borderRadius, fontSize } from '../theme/tokens';
+import { spacing, borderRadius, fontSize, colors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 import { browseHistoryApi } from '../services/api';
 import { useNavigation } from '@react-navigation/native';

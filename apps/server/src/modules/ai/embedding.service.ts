@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const EMBEDDING_URL = 'https://api.siliconflow.cn/v1/embeddings';
@@ -61,7 +62,7 @@ export class EmbeddingService {
       .trim().split(' ').filter(w => w.length >= 1);
 
     const shops = await this.prisma.shop.findMany({
-      where: { status: 1, embedding: { not: null } },
+      where: { status: 1, embedding: { not: Prisma.DbNull } },
       include: {
         category: true,
         products: { where: { status: 1 }, take: 5, orderBy: { sales: 'desc' } },

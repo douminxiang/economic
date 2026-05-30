@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,28 @@ export function ImageUploader({ value, onChange, label, size = 80 }: ImageUpload
   const { colors } = useTheme();
   const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        label: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs },
+        container: {
+          borderRadius: borderRadius.md,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderStyle: 'dashed',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.background,
+          overflow: 'hidden',
+        },
+        image: { borderRadius: borderRadius.md, resizeMode: 'cover' },
+        placeholder: { alignItems: 'center' },
+        plus: { fontSize: 28, color: colors.textLight, lineHeight: 32 },
+        hint: { fontSize: fontSize.xs, color: colors.textLight, marginTop: spacing.xs },
+      }),
+    [colors],
+  );
 
   const handlePick = () => {
     launchImageLibrary(
@@ -79,38 +101,3 @@ export function ImageUploader({ value, onChange, label, size = 80 }: ImageUpload
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  label: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  container: {
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    overflow: 'hidden',
-  },
-  image: {
-    borderRadius: borderRadius.md,
-    resizeMode: 'cover',
-  },
-  placeholder: {
-    alignItems: 'center',
-  },
-  plus: {
-    fontSize: 28,
-    color: colors.textLight,
-    lineHeight: 32,
-  },
-  hint: {
-    fontSize: fontSize.xs,
-    color: colors.textLight,
-    marginTop: spacing.xs,
-  },
-});
