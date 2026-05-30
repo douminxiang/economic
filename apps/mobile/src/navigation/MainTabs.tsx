@@ -6,18 +6,24 @@ import { MapStack } from './MapStack';
 import { OrderStack } from './OrderStack';
 import AIScreen from '../screens/AIScreen';
 import { ProfileStack } from './ProfileStack';
-import { colors, fontSize } from '../theme/tokens';
+import { fontSize } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 
 const Tab = createBottomTabNavigator();
 
 export const MainTabs = () => {
   const { t } = useTranslation();
+  const { colors, isDark } = useTheme();
 
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textLight,
+        tabBarStyle: {
+          backgroundColor: isDark ? '#1E1E1E' : colors.surface,
+          borderTopColor: colors.border,
+        },
         tabBarLabelStyle: { fontSize: fontSize.xs },
         headerShown: false,
       }}

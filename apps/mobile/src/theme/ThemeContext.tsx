@@ -5,7 +5,7 @@ import { lightColors, darkColors, ColorScheme } from './tokens';
 
 const storage = createMMKV();
 
-type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark' | 'system';
 
 interface ThemeContextValue {
   colors: ColorScheme;

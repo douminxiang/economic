@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useStore } from 'zustand';
 import { ChatBubble } from '../components/ai/ChatBubble';
 import { QuickQuestions } from '../components/ai/QuickQuestions';
 import { ChatInput } from '../components/ai/ChatInput';
-import { useAIStore, AIMessage } from '../stores/aiStore';
+import { useAIStore } from '../stores/aiStore';
 import { createChatStream, shopApi } from '../services/api';
 import { spacing, fontSize, borderRadius } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
@@ -28,6 +28,97 @@ export default function AIScreen({ navigation }: any) {
   const clearMessages = useStore(useAIStore, (s) => s.clearMessages);
   const [thinkingEnabled, setThinkingEnabled] = useState(false);
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: { flex: 1, backgroundColor: colors.background },
+        header: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: spacing.md,
+          height: 56,
+          backgroundColor: colors.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        },
+        headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
+        headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+        thinkingToggle: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4,
+          paddingHorizontal: 12,
+          paddingVertical: 6,
+          borderRadius: borderRadius.full,
+          backgroundColor: colors.background,
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
+        thinkingToggleActive: {
+          backgroundColor: colors.primary,
+          borderColor: colors.primary,
+        },
+        thinkingEmoji: { fontSize: 14 },
+        thinkingLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+        thinkingLabelActive: { color: '#FFF' },
+        newChatBtn: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '500' },
+        listContent: { paddingVertical: spacing.md, paddingBottom: spacing.sm },
+        welcomeContainer: { paddingTop: spacing.xl, alignItems: 'center' },
+        avatarCircle: {
+          width: 72,
+          height: 72,
+          borderRadius: 36,
+          backgroundColor: '#FFF3ED',
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginBottom: spacing.md,
+        },
+        avatarEmoji: { fontSize: 36 },
+        welcomeTitle: { fontSize: fontSize.xl, fontWeight: '700', color: colors.text, marginBottom: spacing.xs },
+        welcomeSubtitle: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.lg },
+        featureRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xl, paddingHorizontal: spacing.lg },
+        featureCard: {
+          flex: 1,
+          alignItems: 'center',
+          backgroundColor: colors.surface,
+          borderRadius: borderRadius.lg,
+          padding: spacing.md,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 3,
+          elevation: 1,
+        },
+        featureIcon: { fontSize: 24, marginBottom: spacing.xs },
+        featureText: { fontSize: fontSize.xs, color: colors.textSecondary, fontWeight: '500' },
+        typingRow: { flexDirection: 'row', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 8 },
+        typingAvatar: {
+          width: 32,
+          height: 32,
+          borderRadius: 16,
+          backgroundColor: '#FFF3ED',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        typingBubble: {
+          backgroundColor: colors.surface,
+          borderRadius: borderRadius.lg,
+          borderBottomLeftRadius: borderRadius.xs,
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.sm,
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
+        typingDots: { flexDirection: 'row', gap: 4, alignItems: 'center', height: 16 },
+        dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textLight },
+        dot1: { opacity: 0.4 },
+        dot2: { opacity: 0.6 },
+        dot3: { opacity: 0.8 },
+      }),
+    [colors],
+  );
+
   useEffect(() => {
     Animated.timing(headerOpacity, { toValue: 1, duration: 600, useNativeDriver: true }).start();
     clearMessages();
@@ -37,90 +128,88 @@ export default function AIScreen({ navigation }: any) {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages]);
 
-  const handleSend = useCallback(async (content: string, imageUrl?: string) => {
-    addUserMessage(content, imageUrl);
-    setStreaming(true);
+  const handleSend = useCallback(
+    async (content: string, imageUrl?: string) => {
+      addUserMessage(content, imageUrl);
+      setStreaming(true);
 
-    let assistantContent = '';
-    addAssistantMessage('');
+      let assistantContent = '';
+      addAssistantMessage('');
 
-    await createChatStream(
-      content,
-      currentConversationId ?? undefined,
-      (chunk) => {
-        assistantContent += chunk;
-        updateLastAssistantMessage(assistantContent);
-      },
-      (convId) => {
-        setCurrentConversation(convId);
-        setStreaming(false);
-      },
-      (error) => {
-        updateLastAssistantMessage(`${t('ai.errorMessage')}${error}`);
-        setStreaming(false);
-      },
-      (thinkingChunk) => {
-        updateLastAssistantThinking(thinkingChunk);
-      },
-      thinkingEnabled,
-      (searchResults) => {
-        useAIStore.getState().setSearchResults(searchResults);
-      },
-      imageUrl,
-    );
-  }, [currentConversationId, thinkingEnabled]);
+      await createChatStream(
+        content,
+        currentConversationId ?? undefined,
+        (chunk) => {
+          assistantContent += chunk;
+          updateLastAssistantMessage(assistantContent);
+        },
+        (convId) => {
+          setCurrentConversation(convId);
+          setStreaming(false);
+        },
+        (error) => {
+          updateLastAssistantMessage(`${t('ai.errorMessage')}${error}`);
+          setStreaming(false);
+        },
+        (thinkingChunk) => {
+          updateLastAssistantThinking(thinkingChunk);
+        },
+        thinkingEnabled,
+        (searchResults) => {
+          useAIStore.getState().setSearchResults(searchResults);
+        },
+        imageUrl,
+      );
+    },
+    [currentConversationId, thinkingEnabled, t],
+  );
 
-  const handleRestaurantPress = useCallback(async (name: string) => {
-    try {
-      const cleanName = name
-        .replace(/[^一-龥a-zA-Z0-9\s]/g, '')
-        .replace(/\s+/g, '')
-        .trim();
+  const handleRestaurantPress = useCallback(
+    async (name: string) => {
+      try {
+        const cleanName = name.replace(/[^一-龥a-zA-Z0-9\s]/g, '').replace(/\s+/g, '').trim();
+        if (!cleanName) return;
 
-      if (!cleanName) return;
-
-      const res = await shopApi.list({ keyword: cleanName, page: 1, limit: 5 });
-      const shops = res.data?.items || [];
-      const shop = shops.find((s: any) => s.name.includes(cleanName) || cleanName.includes(s.name));
-      if (shop) {
-        navigation.navigate('Home' as never, { screen: 'ShopDetail', params: { id: shop.id } } as never);
-      } else if (shops.length > 0) {
-        navigation.navigate('Home' as never, { screen: 'ShopDetail', params: { id: shops[0].id } } as never);
+        const res = await shopApi.list({ keyword: cleanName, page: 1, limit: 5 });
+        const shops = res.data?.items || [];
+        const shop = shops.find((s: any) => s.name.includes(cleanName) || cleanName.includes(s.name));
+        if (shop) {
+          navigation.navigate('Home' as never, { screen: 'ShopDetail', params: { id: shop.id } } as never);
+        } else if (shops.length > 0) {
+          navigation.navigate('Home' as never, { screen: 'ShopDetail', params: { id: shops[0].id } } as never);
+        }
+      } catch (e) {
+        console.log('[AI] Restaurant press error:', e);
       }
-    } catch (e) {
-      console.log('[AI] Restaurant press error:', e);
-    }
-  }, [navigation]);
+    },
+    [navigation],
+  );
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.headerDot} />
-          <Text style={styles.headerTitle}>{t('ai.title')}</Text>
-        </View>
+        <Text style={styles.headerTitle}>{t('ai.title')}</Text>
         <View style={styles.headerRight}>
           <TouchableOpacity
-            style={[styles.thinkingToggleBtn, thinkingEnabled && styles.thinkingToggleBtnActive]}
+            style={[styles.thinkingToggle, thinkingEnabled && styles.thinkingToggleActive]}
             onPress={() => setThinkingEnabled(!thinkingEnabled)}
             activeOpacity={0.7}
           >
-            <Text style={[styles.thinkingToggleBtnText, thinkingEnabled && styles.thinkingToggleBtnTextActive]}>
-              🧠
+            <Text style={styles.thinkingEmoji}>🧠</Text>
+            <Text style={[styles.thinkingLabel, thinkingEnabled && styles.thinkingLabelActive]}>
+              {t('ai.deepThinking')}
             </Text>
           </TouchableOpacity>
-          {messages.length > 0 && (
-            <Text style={styles.newChatBtn} onPress={clearMessages}>{t('ai.newChat')}</Text>
-          )}
+          {messages.length > 0 ? (
+            <Text style={styles.newChatBtn} onPress={clearMessages}>
+              {t('ai.newChat')}
+            </Text>
+          ) : null}
         </View>
       </View>
 
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={styles.listContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        {messages.length === 0 && (
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.listContent} keyboardShouldPersistTaps="handled">
+        {messages.length === 0 ? (
           <Animated.View style={[styles.welcomeContainer, { opacity: headerOpacity }]}>
             <View style={styles.avatarCircle}>
               <Text style={styles.avatarEmoji}>🤖</Text>
@@ -145,7 +234,7 @@ export default function AIScreen({ navigation }: any) {
 
             <QuickQuestions onSelect={handleSend} />
           </Animated.View>
-        )}
+        ) : null}
 
         {messages.map((item) => (
           <ChatBubble
@@ -159,7 +248,7 @@ export default function AIScreen({ navigation }: any) {
           />
         ))}
 
-        {isStreaming && (
+        {isStreaming ? (
           <View style={styles.typingRow}>
             <View style={styles.typingAvatar}>
               <Text style={{ fontSize: 14 }}>🤖</Text>
@@ -172,72 +261,10 @@ export default function AIScreen({ navigation }: any) {
               </View>
             </View>
           </View>
-        )}
+        ) : null}
       </ScrollView>
 
       <ChatInput onSend={handleSend} disabled={isStreaming} />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.md, height: 56, backgroundColor: colors.surface,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
-  headerTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
-  newChatBtn: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '500' },
-  thinkingToggleBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  thinkingToggleBtnActive: {
-    backgroundColor: '#FFF3ED',
-    borderColor: '#FF6B35',
-  },
-  thinkingToggleBtnText: {
-    fontSize: 16,
-  },
-  thinkingToggleBtnTextActive: {
-    fontSize: 16,
-  },
-  listContent: { paddingBottom: spacing.md },
-  welcomeContainer: { paddingTop: spacing.xl, alignItems: 'center' },
-  avatarCircle: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: '#FFF3ED', justifyContent: 'center', alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  avatarEmoji: { fontSize: 36 },
-  welcomeTitle: { fontSize: fontSize.xl, fontWeight: '700', color: colors.text, marginBottom: spacing.xs },
-  welcomeSubtitle: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.lg },
-  featureRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xl, paddingHorizontal: spacing.lg },
-  featureCard: {
-    flex: 1, alignItems: 'center', backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg, padding: spacing.md,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
-  },
-  featureIcon: { fontSize: 24, marginBottom: spacing.xs },
-  featureText: { fontSize: fontSize.xs, color: colors.textSecondary, fontWeight: '500' },
-  typingRow: { flexDirection: 'row', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 8 },
-  typingAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#FFF3ED', justifyContent: 'center', alignItems: 'center' },
-  typingBubble: {
-    backgroundColor: colors.surface, borderRadius: borderRadius.lg,
-    borderBottomLeftRadius: borderRadius.xs, paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm, borderWidth: 1, borderColor: colors.border,
-  },
-  typingDots: { flexDirection: 'row', gap: 4, alignItems: 'center', height: 16 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textLight },
-  dot1: { opacity: 0.4 },
-  dot2: { opacity: 0.6 },
-  dot3: { opacity: 0.8 },
-});

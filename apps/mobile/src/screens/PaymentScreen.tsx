@@ -1,131 +1,222 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  Easing,
+  Modal,
+  ActivityIndicator,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { usePayOrder, usePayment } from '../hooks';
-import { fontSize, spacing, borderRadius } from '../theme/tokens';
+import { usePayment } from '../hooks';
+import { fontSize, spacing, borderRadius, shadows } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
+
+type PayPhase = 'idle' | 'opening' | 'verifying' | 'success';
 
 export default function PaymentScreen({ navigation, route }: any) {
   const { t } = useTranslation();
   const { colors } = useTheme();
-
-  const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F5F6FA' },
-    header: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingHorizontal: spacing.md, height: 56, backgroundColor: colors.surface,
-      borderBottomWidth: 1, borderBottomColor: colors.border,
-    },
-    backBtn: { width: 32, height: 32, justifyContent: 'center' },
-    backText: { fontSize: 22, color: colors.text },
-    headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
-
-    amountSection: {
-      backgroundColor: colors.surface, alignItems: 'center', paddingVertical: 32,
-      borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
-      shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3,
-    },
-    amountLabel: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: 8 },
-    amountRow: { flexDirection: 'row', alignItems: 'flex-start' },
-    amountSign: { fontSize: fontSize.xl, fontWeight: '600', color: colors.text, marginTop: 4 },
-    amountValue: { fontSize: 48, fontWeight: '700', color: colors.text, letterSpacing: -1 },
-
-    methodsSection: { padding: spacing.md },
-    sectionTitle: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: 12, marginLeft: 4 },
-    methodCard: {
-      flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
-      borderRadius: borderRadius.md, padding: 16, marginBottom: 10,
-      borderWidth: 2, borderColor: 'transparent',
-      shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
-    },
-    methodCardActive: { borderColor: colors.primary },
-    methodIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-    methodIconText: { fontSize: 22 },
-    methodName: { flex: 1, marginLeft: 14, fontSize: fontSize.md, fontWeight: '500', color: colors.text },
-    radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border, justifyContent: 'center', alignItems: 'center' },
-    radioInner: { width: 12, height: 12, borderRadius: 6 },
-
-    bottomSection: { marginTop: 'auto', padding: spacing.md, paddingBottom: 32 },
-    payBtn: {
-      backgroundColor: colors.primary, borderRadius: 28, height: 54,
-      justifyContent: 'center', alignItems: 'center',
-      shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
-    },
-    payBtnText: { color: '#FFF', fontSize: fontSize.lg, fontWeight: '600' },
-    payingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    spinner: { fontSize: 22, color: '#FFF' },
-    secureTip: { fontSize: fontSize.xs, color: colors.textSecondary, textAlign: 'center', marginTop: 12 },
-
-    successCard: {
-      flex: 1, backgroundColor: colors.surface, margin: spacing.md, borderRadius: borderRadius.lg,
-      alignItems: 'center', paddingTop: 60, marginTop: 40,
-      shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 5,
-    },
-    successIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#07C160', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-    successCheck: { color: '#FFF', fontSize: 40, fontWeight: '700' },
-    successTitle: { fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: 8 },
-    successAmount: { fontSize: 36, fontWeight: '700', color: colors.text, marginBottom: 4 },
-    successMethod: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: 40 },
-    successActions: { flexDirection: 'row', gap: 16, paddingHorizontal: 24, width: '100%' },
-    viewOrderBtn: { flex: 1, backgroundColor: colors.primary, borderRadius: 24, height: 48, justifyContent: 'center', alignItems: 'center' },
-    viewOrderText: { color: '#FFF', fontSize: fontSize.md, fontWeight: '600' },
-    homeBtn: { flex: 1, backgroundColor: '#F5F6FA', borderRadius: 24, height: 48, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
-    homeText: { color: colors.text, fontSize: fontSize.md, fontWeight: '600' },
-  });
-
-  const { orderId, amount, orderNo } = route.params;
+  const { orderId, amount } = route.params;
   const [selectedMethod, setSelectedMethod] = useState('alipay');
-  const [paying, setPaying] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const payMut = usePayOrder();
-  const { initiatePayment, isLoading, isSuccess: paymentSuccess, error: paymentError } = usePayment();
+  const [phase, setPhase] = useState<PayPhase>('idle');
+  const { initiatePayment } = usePayment();
 
   const PAYMENT_METHODS = [
-    { key: 'alipay', name: t('payment.alipay'), icon: '💳', color: '#1677FF', bg: '#E6F0FF' },
-    { key: 'wechat', name: t('payment.wechat'), icon: '💚', color: '#07C160', bg: '#E6F9ED' },
-    { key: 'unionpay', name: t('payment.unionpay'), icon: '🏦', color: '#E21E2D', bg: '#FDECEC' },
+    { key: 'alipay', name: t('payment.alipay'), badge: '支', color: '#1677FF', recommended: true },
+    { key: 'wechat', name: t('payment.wechat'), badge: '微', color: '#07C160' },
+    { key: 'unionpay', name: t('payment.unionpay'), badge: '银', color: '#E21836' },
   ];
 
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: { flex: 1, backgroundColor: colors.background },
+        header: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: spacing.md,
+          height: 56,
+          backgroundColor: colors.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        },
+        backText: { fontSize: 22, color: colors.text, width: 32 },
+        headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
+        amountSection: {
+          backgroundColor: colors.surface,
+          alignItems: 'center',
+          paddingVertical: 24,
+        },
+        amountLabel: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: 8 },
+        amountValue: { fontSize: 36, fontWeight: '700', color: colors.text },
+        content: { flex: 1, padding: spacing.md, gap: 16 },
+        sectionTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
+        methodCard: {
+          backgroundColor: colors.surface,
+          borderRadius: borderRadius.lg,
+          borderWidth: 1,
+          borderColor: colors.border,
+          overflow: 'hidden',
+          ...shadows.sm,
+        },
+        methodRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          height: 56,
+          paddingHorizontal: 14,
+          gap: 12,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        },
+        methodRowLast: { borderBottomWidth: 0 },
+        methodIcon: {
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        methodIconText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+        methodInfo: { flex: 1 },
+        methodName: { fontSize: 15, fontWeight: '500', color: colors.text },
+        methodDesc: { fontSize: 11, color: colors.primary, marginTop: 2 },
+        radio: {
+          width: 22,
+          height: 22,
+          borderRadius: 11,
+          borderWidth: 2,
+          borderColor: colors.border,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        radioInner: { width: 12, height: 12, borderRadius: 6 },
+        bottom: { padding: spacing.md, paddingBottom: 32 },
+        payBtn: {
+          backgroundColor: colors.primary,
+          borderRadius: 25,
+          height: 50,
+          flexDirection: 'row',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 8,
+        },
+        payBtnText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+        secureTip: { fontSize: 11, color: colors.textLight, textAlign: 'center', marginTop: 12 },
+        overlay: {
+          flex: 1,
+          backgroundColor: colors.overlay,
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: spacing.lg,
+        },
+        overlayCard: {
+          backgroundColor: colors.surface,
+          borderRadius: borderRadius.lg,
+          padding: spacing.xl,
+          alignItems: 'center',
+          minWidth: 260,
+          ...shadows.md,
+        },
+        overlayTitle: { fontSize: fontSize.md, color: colors.text, marginTop: spacing.md, fontWeight: '500' },
+        overlayHint: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.sm },
+        successCard: {
+          flex: 1,
+          backgroundColor: colors.surface,
+          margin: spacing.md,
+          borderRadius: borderRadius.lg,
+          alignItems: 'center',
+          paddingTop: 60,
+          marginTop: 40,
+          ...shadows.md,
+        },
+        successIcon: {
+          width: 80,
+          height: 80,
+          borderRadius: 40,
+          backgroundColor: colors.success,
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginBottom: 20,
+        },
+        successCheck: { color: '#FFF', fontSize: 40, fontWeight: '700' },
+        successTitle: { fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: 8 },
+        successAmount: { fontSize: 36, fontWeight: '700', color: colors.text, marginBottom: 40 },
+        successActions: { flexDirection: 'row', gap: 16, paddingHorizontal: 24, width: '100%' },
+        viewOrderBtn: {
+          flex: 1,
+          backgroundColor: colors.primary,
+          borderRadius: 24,
+          height: 48,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        viewOrderText: { color: '#FFF', fontSize: fontSize.md, fontWeight: '600' },
+        homeBtn: {
+          flex: 1,
+          backgroundColor: colors.background,
+          borderRadius: 24,
+          height: 48,
+          justifyContent: 'center',
+          alignItems: 'center',
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
+        homeText: { color: colors.text, fontSize: fontSize.md, fontWeight: '600' },
+      }),
+    [colors],
+  );
+
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     Animated.parallel([
       Animated.spring(scaleAnim, { toValue: 1, friction: 6, useNativeDriver: true }),
       Animated.timing(opacityAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
     ]).start();
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, []);
 
   useEffect(() => {
-    if (paying) {
+    if (phase === 'opening' || phase === 'verifying') {
       Animated.loop(
         Animated.timing(spinAnim, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true }),
       ).start();
     } else {
       spinAnim.setValue(0);
     }
-  }, [paying]);
+  }, [phase]);
 
   const spin = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   const handlePay = async () => {
-    setPaying(true);
+    setPhase('opening');
+    timeoutRef.current = setTimeout(() => setPhase('idle'), 30000);
+
     try {
       await initiatePayment(orderId, selectedMethod);
+      setPhase('verifying');
       setTimeout(() => {
-        setPaying(false);
-        setSuccess(true);
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        setPhase('success');
         Animated.spring(checkScale, { toValue: 1, friction: 4, useNativeDriver: true }).start();
-      }, 1500);
+      }, 1200);
     } catch {
-      setPaying(false);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setPhase('idle');
     }
   };
 
-  // Success page
-  if (success) {
+  if (phase === 'success') {
     const methodInfo = PAYMENT_METHODS.find((m) => m.key === selectedMethod);
     return (
       <View style={styles.container}>
@@ -135,9 +226,12 @@ export default function PaymentScreen({ navigation, route }: any) {
           </Animated.View>
           <Text style={styles.successTitle}>{t('payment.success')}</Text>
           <Text style={styles.successAmount}>¥{Number(amount).toFixed(2)}</Text>
-          <Text style={styles.successMethod}>{methodInfo?.name}</Text>
+          <Text style={{ color: colors.textSecondary, marginBottom: 24 }}>{methodInfo?.name}</Text>
           <View style={styles.successActions}>
-            <TouchableOpacity style={styles.viewOrderBtn} onPress={() => navigation.replace('OrderDetail', { id: orderId })}>
+            <TouchableOpacity
+              style={styles.viewOrderBtn}
+              onPress={() => navigation.replace('OrderDetail', { id: orderId })}
+            >
               <Text style={styles.viewOrderText}>{t('payment.viewOrder')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.homeBtn} onPress={() => navigation.popToTop()}>
@@ -149,61 +243,70 @@ export default function PaymentScreen({ navigation, route }: any) {
     );
   }
 
-  // Payment page
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => navigation.goBack()} disabled={phase !== 'idle'}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('payment.confirm')}</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 32 }} />
       </View>
 
       <Animated.View style={[styles.amountSection, { opacity: opacityAnim, transform: [{ scale: scaleAnim }] }]}>
         <Text style={styles.amountLabel}>{t('payment.amount')}</Text>
-        <View style={styles.amountRow}>
-          <Text style={styles.amountSign}>¥</Text>
-          <Text style={styles.amountValue}>{Number(amount).toFixed(2)}</Text>
-        </View>
+        <Text style={styles.amountValue}>¥{Number(amount).toFixed(2)}</Text>
       </Animated.View>
 
-      <View style={styles.methodsSection}>
+      <View style={styles.content}>
         <Text style={styles.sectionTitle}>{t('payment.selectMethod')}</Text>
-        {PAYMENT_METHODS.map((method) => (
-          <TouchableOpacity
-            key={method.key}
-            style={[styles.methodCard, selectedMethod === method.key && styles.methodCardActive]}
-            onPress={() => setSelectedMethod(method.key)}
-          >
-            <View style={[styles.methodIcon, { backgroundColor: method.bg }]}>
-              <Text style={styles.methodIconText}>{method.icon}</Text>
-            </View>
-            <Text style={styles.methodName}>{method.name}</Text>
-            <View style={[styles.radio, selectedMethod === method.key && { borderColor: method.color }]}>
-              {selectedMethod === method.key && <View style={[styles.radioInner, { backgroundColor: method.color }]} />}
-            </View>
-          </TouchableOpacity>
-        ))}
+        <View style={styles.methodCard}>
+          {PAYMENT_METHODS.map((method, index) => (
+            <TouchableOpacity
+              key={method.key}
+              style={[styles.methodRow, index === PAYMENT_METHODS.length - 1 && styles.methodRowLast]}
+              onPress={() => setSelectedMethod(method.key)}
+              disabled={phase !== 'idle'}
+            >
+              <View style={[styles.methodIcon, { backgroundColor: method.color }]}>
+                <Text style={styles.methodIconText}>{method.badge}</Text>
+              </View>
+              <View style={styles.methodInfo}>
+                <Text style={styles.methodName}>{method.name}</Text>
+                {method.recommended ? <Text style={styles.methodDesc}>{t('payment.recommended')}</Text> : null}
+              </View>
+              <View style={[styles.radio, selectedMethod === method.key && { borderColor: colors.primary }]}>
+                {selectedMethod === method.key ? (
+                  <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />
+                ) : null}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      <View style={styles.bottomSection}>
-        <TouchableOpacity
-          style={[styles.payBtn, paying && { opacity: 0.7 }]}
-          disabled={paying}
-          onPress={handlePay}
-        >
-          {paying ? (
-            <View style={styles.payingRow}>
-              <Animated.Text style={[styles.spinner, { transform: [{ rotate: spin }] }]}>↻</Animated.Text>
-              <Text style={styles.payBtnText}>{t('payment.paying')}</Text>
-            </View>
-          ) : (
-            <Text style={styles.payBtnText}>{t('payment.payNow')} ¥{Number(amount).toFixed(2)}</Text>
-          )}
+      <View style={styles.bottom}>
+        <TouchableOpacity style={styles.payBtn} disabled={phase !== 'idle'} onPress={handlePay}>
+          <Text style={styles.payBtnText}>🔒 {t('payment.payNow')} ¥{Number(amount).toFixed(2)}</Text>
         </TouchableOpacity>
-        <Text style={styles.secureTip}>🔒 {t('payment.secureTip')}</Text>
+        <Text style={styles.secureTip}>{t('payment.secureTip')}</Text>
       </View>
+
+      <Modal visible={phase === 'opening' || phase === 'verifying'} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={styles.overlayCard}>
+            <Animated.View style={{ transform: [{ rotate: spin }] }}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </Animated.View>
+            <Text style={styles.overlayTitle}>
+              {phase === 'opening' ? t('payment.openingAlipay') : t('payment.verifying')}
+            </Text>
+            {phase === 'verifying' ? (
+              <Text style={styles.overlayHint}>{t('payment.doNotClose')}</Text>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

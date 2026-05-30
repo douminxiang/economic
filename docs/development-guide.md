@@ -1,6 +1,6 @@
 # 项目开发指南 — 后续操作与配置手册
 
-**最后更新：** 2026-05-29
+**最后更新：** 2026-05-30
 **适用环境：** Cursor IDE + Windows 11
 
 ---
@@ -19,6 +19,7 @@
 10. [Cursor 开发注意事项](#10-cursor-开发注意事项)
 11. [已知问题与限制](#11-已知问题与限制)
 12. [功能验证清单](#12-功能验证清单)
+13. [UI 设计稿对齐说明](#13-ui-设计稿对齐说明)
 
 ---
 
@@ -649,9 +650,36 @@ npm run android
 
 ---
 
+## 13. UI 设计稿对齐说明
+
+移动端 UI 已按以下两份设计对齐（2026-05-30 更新）：
+
+| 来源 | 路径 |
+|------|------|
+| 文字规范 | `docs/superpowers/specs/2026-05-29-ui-mockups.md` |
+| Pencil 画板 | 外部 `untitled.pen`（JSON，主色 `#FF6B35`） |
+
+### 已对齐页面/组件
+
+- **AI 助手**：`AIScreen`、`ChatBubble`、`ChatInput`、`SearchResultCard` — 深度思考折叠、网络搜索卡片、图片预览条、餐厅推荐卡片
+- **订单详情**：`OrderDetailScreen` — 配送中橙色状态卡、脉冲指示、实时更新文案、双按钮底栏
+- **支付**：`PaymentScreen` — 支付宝/微信/银联列表、支付中/验证遮罩、成功页
+- **地图**：`MapScreen` — 配送中骑手信息浮层
+- **我的**：`SettingsScreen` — 使用分析、深色模式、语言切换
+- **Tab 栏**：`MainTabs` — 深色模式背景与主色
+
+### Cursor 继续开发时
+
+1. 样式优先使用 `theme/tokens.ts` 与 `useTheme()`，避免在 `StyleSheet.create` 顶层引用 `colors`（无法响应深色模式）。
+2. 文案走 `useTranslation`，键名见 `apps/mobile/src/i18n/locales/`。
+3. 改 UI 时同时对照 `2026-05-29-ui-mockups.md` 与 `.pen` 中的尺寸/颜色。
+
+---
+
 ## 联系与支持
 
 - 项目文档：`docs/` 目录
 - 开发计划：`docs/superpowers/plans/`
 - UI 设计稿：`docs/superpowers/specs/2026-05-29-ui-mockups.md`
+- Pencil 源文件：可放在项目根或 `docs/design/` 便于版本管理
 - 技术亮点分析：`docs/superpowers/plans/2026-05-29-highlights-features-plan.md`

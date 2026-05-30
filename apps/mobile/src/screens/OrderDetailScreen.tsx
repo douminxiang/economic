@@ -34,6 +34,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
     },
     statusText: { fontSize: fontSize.xl, fontWeight: '600', color: colors.white },
     statusSub: { fontSize: fontSize.sm, color: '#FFFFFFCC', marginTop: spacing.xs },
+    statusLive: { fontSize: fontSize.xs, color: '#FFFFFFAA', marginTop: spacing.xs },
     section: {
       backgroundColor: colors.surface, borderRadius: borderRadius.md,
       padding: spacing.md, marginBottom: spacing.md, ...shadows.sm,
@@ -79,6 +80,8 @@ export default function OrderDetailScreen({ route, navigation }: any) {
   // Use realtime status if available, otherwise fall back to order data
   const currentStatus = realtimeStatus !== null ? realtimeStatus : order.status;
   const statusInfo = STATUS_MAP[currentStatus] || STATUS_MAP[0];
+  const isDelivering = currentStatus === 3;
+  const statusCardColor = isDelivering ? colors.primary : statusInfo.color;
 
   return (
     <View style={styles.container}>
@@ -92,20 +95,25 @@ export default function OrderDetailScreen({ route, navigation }: any) {
 
       <ScrollView style={styles.content}>
         {/* Status Card */}
-        <View style={[styles.statusCard, { backgroundColor: statusInfo.color }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={[styles.statusCard, { backgroundColor: statusCardColor }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {isDelivering ? (
+              <RealtimeStatusIndicator active={isConnected} color={colors.success} size={12} />
+            ) : null}
             <Text style={styles.statusText}>{realtimeStatusText || statusInfo.text}</Text>
-            {currentStatus === 3 && (
-              <RealtimeStatusIndicator active={isConnected} color="#FFFFFF" size={10} />
-            )}
           </View>
-          {currentStatus === 3 && (
-            <Text style={styles.statusSub}>
-              {riderLocation
-                ? t('order.estimatedDelivery') + ` (${riderLocation.estimatedMinutes}${t('order.minutes')})`
-                : t('order.estimatedDelivery')}
-            </Text>
-          )}
+          {isDelivering ? (
+            <>
+              <Text style={styles.statusSub}>
+                {riderLocation
+                  ? `${t('order.estimatedDelivery')} (${riderLocation.estimatedMinutes}${t('order.minutes')})`
+                  : t('order.estimatedDelivery')}
+              </Text>
+              {isConnected ? (
+                <Text style={styles.statusLive}>{t('order.realtimeUpdating')}</Text>
+              ) : null}
+            </>
+          ) : null}
         </View>
 
         {/* Address */}
@@ -168,13 +176,30 @@ export default function OrderDetailScreen({ route, navigation }: any) {
           </>
         )}
         {currentStatus === 3 && (
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => {
-            Alert.alert(t('common.tip'), t('order.confirmReceiveMessage'), [
-              { text: t('common.no') }, { text: t('common.yes'), onPress: () => confirmMut.mutate(order.id) },
-            ]);
-          }}>
-            <Text style={styles.primaryBtnText}>{t('order.confirmReceived')}</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={styles.outlineBtn}
+              onPress={() => {
+                Alert.alert(t('common.tip'), t('order.cancelConfirm'), [
+                  { text: t('common.no') },
+                  { text: t('common.yes'), onPress: () => cancelMut.mutate(order.id) },
+                ]);
+              }}
+            >
+              <Text style={styles.outlineBtnText}>{t('order.cancelOrder')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.primaryBtn}
+              onPress={() => {
+                Alert.alert(t('common.tip'), t('order.confirmReceiveMessage'), [
+                  { text: t('common.no') },
+                  { text: t('common.yes'), onPress: () => confirmMut.mutate(order.id) },
+                ]);
+              }}
+            >
+              <Text style={styles.primaryBtnText}>{t('order.confirmReceived')}</Text>
+            </TouchableOpacity>
+          </>
         )}
         {currentStatus === 4 && (
           <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('ReviewSubmit', { orderId: order.id, order })}>

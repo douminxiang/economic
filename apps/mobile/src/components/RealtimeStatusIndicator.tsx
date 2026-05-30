@@ -26,24 +26,24 @@ export function RealtimeStatusIndicator({ active, color = '#4CAF50', size = 10 }
         Animated.parallel([
           Animated.timing(pulseAnim, {
             toValue: 1.8,
-            duration: 800,
+            duration: 750,
             useNativeDriver: true,
           }),
           Animated.timing(opacityAnim, {
             toValue: 0.3,
-            duration: 800,
+            duration: 750,
             useNativeDriver: true,
           }),
         ]),
         Animated.parallel([
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 800,
+            duration: 750,
             useNativeDriver: true,
           }),
           Animated.timing(opacityAnim, {
             toValue: 0.8,
-            duration: 800,
+            duration: 750,
             useNativeDriver: true,
           }),
         ]),

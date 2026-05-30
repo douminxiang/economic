@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Dimensions, PermissionsAndroid, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MapView, Marker } from 'react-native-amap3d';
@@ -112,6 +112,114 @@ export default function MapScreen({ navigation, route }: any) {
 
   const shops = nearbyData?.data?.items || [];
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: { flex: 1, backgroundColor: colors.background },
+        searchBar: {
+          position: 'absolute',
+          top: 50,
+          left: 16,
+          right: 16,
+          zIndex: 10,
+          backgroundColor: colors.surface,
+          borderRadius: 22,
+          padding: 12,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 3,
+        },
+        searchText: { color: colors.textLight, fontSize: fontSize.sm },
+        map: { width, height: '100%' },
+        riderPanel: {
+          position: 'absolute',
+          bottom: selectedShop ? 180 : 16,
+          left: 16,
+          right: 16,
+          backgroundColor: colors.surface,
+          borderRadius: borderRadius.lg,
+          padding: spacing.md,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.12,
+          shadowRadius: 6,
+          elevation: 4,
+        },
+        riderTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
+        riderSub: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 4 },
+        riderMeta: { fontSize: fontSize.xs, color: colors.textLight, marginTop: 2 },
+        bottomSheet: {
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: colors.surface,
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          padding: 16,
+          maxHeight: '40%',
+        },
+        sectionTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.text, marginBottom: 8 },
+        shopCard: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingVertical: 12,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        },
+        shopInfo: { flex: 1 },
+        shopName: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
+        shopMeta: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
+        shopRating: { fontSize: fontSize.md, color: colors.primary, fontWeight: '600' },
+        shopDetailPanel: {
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: colors.surface,
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          padding: spacing.md,
+          flexDirection: 'row',
+          alignItems: 'center',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 5,
+        },
+        detailContent: { flex: 1 },
+        detailInfo: { marginBottom: spacing.sm },
+        detailName: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
+        detailMeta: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
+        detailActions: { flexDirection: 'row', gap: spacing.sm },
+        routeBtn: {
+          backgroundColor: colors.primary,
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.sm,
+          borderRadius: borderRadius.full,
+        },
+        routeBtnText: { color: '#FFF', fontSize: fontSize.sm, fontWeight: '600' },
+        detailBtn: {
+          backgroundColor: colors.background,
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.sm,
+          borderRadius: borderRadius.full,
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
+        detailBtnText: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
+        closeBtn: { padding: spacing.sm },
+        closeBtnText: { fontSize: fontSize.lg, color: colors.textSecondary },
+      }),
+    [colors, selectedShop],
+  );
+
+  const showRiderPanel = activeDeliveryOrder && riderLocation && !selectedShop;
+
   return (
     <View style={styles.container}>
       {/* Search bar */}
@@ -152,6 +260,20 @@ export default function MapScreen({ navigation, route }: any) {
         </MapView>
       )}
 
+      {showRiderPanel ? (
+        <TouchableOpacity
+          style={styles.riderPanel}
+          onPress={() => navigation.navigate('Order', { screen: 'OrderDetail', params: { id: activeDeliveryOrder.id } })}
+        >
+          <Text style={styles.riderTitle}>{t('map.riderDelivering')}</Text>
+          <Text style={styles.riderSub}>
+            {t('order.estimatedDelivery')} ({riderLocation.estimatedMinutes}
+            {t('order.minutes')})
+          </Text>
+          <Text style={styles.riderMeta}>{t('map.riderDistance', { km: '2.3' })}</Text>
+        </TouchableOpacity>
+      ) : null}
+
       {/* Selected shop detail panel */}
       {selectedShop && (
         <View style={styles.shopDetailPanel}>
@@ -187,7 +309,7 @@ export default function MapScreen({ navigation, route }: any) {
       )}
 
       {/* Bottom shop list */}
-      {!selectedShop && (
+      {!selectedShop && !showRiderPanel && (
         <View style={styles.bottomSheet}>
           <Text style={styles.sectionTitle}>{t('map.nearbyShops').replace('{{count}}', String(shops.length))}</Text>
           <FlatList
@@ -217,28 +339,3 @@ export default function MapScreen({ navigation, route }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  searchBar: { position: 'absolute', top: 50, left: 16, right: 16, zIndex: 10, backgroundColor: colors.surface, borderRadius: 22, padding: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  searchText: { color: colors.textLight, fontSize: fontSize.sm },
-  map: { width, height: '100%' },
-  bottomSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, maxHeight: '40%' },
-  sectionTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.text, marginBottom: 8 },
-  shopCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  shopInfo: { flex: 1 },
-  shopName: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
-  shopMeta: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
-  shopRating: { fontSize: fontSize.md, color: colors.primary, fontWeight: '600' },
-  shopDetailPanel: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: spacing.md, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 5 },
-  detailContent: { flex: 1 },
-  detailInfo: { marginBottom: spacing.sm },
-  detailName: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
-  detailMeta: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
-  detailActions: { flexDirection: 'row', gap: spacing.sm },
-  routeBtn: { backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.full },
-  routeBtnText: { color: '#FFF', fontSize: fontSize.sm, fontWeight: '600' },
-  detailBtn: { backgroundColor: colors.background, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.border },
-  detailBtnText: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
-  closeBtn: { padding: spacing.sm },
-  closeBtnText: { fontSize: fontSize.lg, color: colors.textSecondary },
-});

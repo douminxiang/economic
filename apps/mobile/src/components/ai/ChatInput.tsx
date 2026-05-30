@@ -1,5 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { fontSize, spacing, borderRadius } from '../../theme/tokens';
@@ -11,12 +19,96 @@ interface Props {
   disabled?: boolean;
 }
 
+function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
+  return StyleSheet.create({
+    container: {
+      backgroundColor: colors.surface,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    previewBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    previewThumb: {
+      width: 64,
+      height: 64,
+      borderRadius: borderRadius.md,
+      backgroundColor: colors.background,
+    },
+    previewInfo: { flex: 1, gap: 2 },
+    previewName: { fontSize: 13, fontWeight: '500', color: colors.text },
+    previewMeta: { fontSize: 11, color: colors.textLight },
+    previewRemove: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.error,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    previewRemoveText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 12,
+    },
+    camBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.background,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    camBtnActive: { backgroundColor: colors.primary },
+    camIcon: { fontSize: 20 },
+    inputField: {
+      flex: 1,
+      height: 40,
+      backgroundColor: colors.background,
+      borderRadius: 20,
+      paddingHorizontal: 14,
+      fontSize: fontSize.sm,
+      color: colors.text,
+    },
+    sendBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    sendBtnDisabled: { backgroundColor: colors.textLight },
+    sendIcon: { color: '#FFF', fontSize: 20, fontWeight: '700' },
+    uploadOverlay: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      borderRadius: borderRadius.md,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+  });
+}
+
 export const ChatInput: React.FC<Props> = ({ onSend, disabled }) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [text, setText] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageName, setImageName] = useState('food_photo.jpg');
+  const [imageSize, setImageSize] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState(0);
 
   const handlePickImage = async () => {
     try {
@@ -27,15 +119,21 @@ export const ChatInput: React.FC<Props> = ({ onSend, disabled }) => {
         quality: 0.8,
       });
 
-      if (result.assets && result.assets.length > 0) {
+      if (result.assets?.[0]?.uri) {
         const asset = result.assets[0];
-        if (asset.uri) {
-          setImageUri(asset.uri);
-        }
+        setImageUri(asset.uri!);
+        setImageName(asset.fileName || 'food_photo.jpg');
+        const sizeMb = asset.fileSize ? (asset.fileSize / (1024 * 1024)).toFixed(1) : '1.2';
+        setImageSize(`${sizeMb} MB`);
       }
     } catch (error) {
       console.log('[ChatInput] Image picker error:', error);
     }
+  };
+
+  const clearImage = () => {
+    setImageUri(null);
+    setUploadPercent(0);
   };
 
   const handleSend = async () => {
@@ -43,51 +141,70 @@ export const ChatInput: React.FC<Props> = ({ onSend, disabled }) => {
 
     let uploadedUrl: string | undefined;
 
-    // Upload image first if present
     if (imageUri) {
       setUploading(true);
+      setUploadPercent(10);
       try {
+        const progressTimer = setInterval(() => {
+          setUploadPercent((p) => (p >= 90 ? 90 : p + 15));
+        }, 200);
         const uploadResult = await uploadApi.uploadImage({
           uri: imageUri,
           type: 'image/jpeg',
           name: `chat_${Date.now()}.jpg`,
         });
+        clearInterval(progressTimer);
+        setUploadPercent(100);
         uploadedUrl = (uploadResult as any)?.data?.url || (uploadResult as any)?.url;
       } catch (error) {
         console.log('[ChatInput] Image upload error:', error);
       }
       setUploading(false);
+      setUploadPercent(0);
     }
 
-    const message = text.trim() || (imageUri ? '请看看这张图片' : '');
+    const message = text.trim() || t('ai.imageDefaultMessage');
     onSend(message, uploadedUrl);
     setText('');
-    setImageUri(null);
+    clearImage();
   };
+
+  const canSend = (text.trim() || imageUri) && !disabled && !uploading;
 
   return (
     <View style={styles.container}>
-      {imageUri && (
-        <View style={styles.imagePreviewContainer}>
-          <Image source={{ uri: imageUri }} style={styles.imagePreview} />
-          <TouchableOpacity
-            style={styles.removeImageBtn}
-            onPress={() => setImageUri(null)}
-          >
-            <Text style={styles.removeImageBtnText}>×</Text>
+      {imageUri ? (
+        <View style={styles.previewBar}>
+          <View>
+            <Image source={{ uri: imageUri }} style={styles.previewThumb} />
+            {uploading ? (
+              <View style={styles.uploadOverlay}>
+                <ActivityIndicator color="#FFF" />
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.previewInfo}>
+            <Text style={styles.previewName}>{imageName}</Text>
+            <Text style={styles.previewMeta}>
+              {uploading ? t('ai.uploadProgress', { percent: uploadPercent }) : imageSize}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.previewRemove} onPress={clearImage} disabled={uploading}>
+            <Text style={styles.previewRemoveText}>×</Text>
           </TouchableOpacity>
         </View>
-      )}
-      <View style={styles.inputWrapper}>
+      ) : null}
+
+      <View style={styles.inputRow}>
         <TouchableOpacity
-          style={styles.imageBtn}
+          style={[styles.camBtn, imageUri && styles.camBtnActive]}
           onPress={handlePickImage}
           disabled={disabled || uploading}
         >
-          <Text style={styles.imageBtnIcon}>📷</Text>
+          <Text style={styles.camIcon}>📷</Text>
         </TouchableOpacity>
         <TextInput
-          style={styles.input}
+          style={styles.inputField}
           value={text}
           onChangeText={setText}
           placeholder={t('ai.inputPlaceholder')}
@@ -96,95 +213,14 @@ export const ChatInput: React.FC<Props> = ({ onSend, disabled }) => {
           editable={!disabled && !uploading}
         />
         <TouchableOpacity
-          style={[styles.sendBtn, ((!text.trim() && !imageUri) || disabled || uploading) && styles.sendBtnDisabled]}
+          style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
           onPress={handleSend}
-          disabled={(!text.trim() && !imageUri) || disabled || uploading}
+          disabled={!canSend}
           activeOpacity={0.7}
         >
-          <Text style={styles.sendIcon}>{uploading ? '...' : '↑'}</Text>
+          <Text style={styles.sendIcon}>{uploading ? '…' : '↑'}</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  imagePreviewContainer: {
-    marginBottom: spacing.sm,
-    alignSelf: 'flex-end',
-    position: 'relative',
-  },
-  imagePreview: {
-    width: 120,
-    height: 90,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  removeImageBtn: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.error,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removeImageBtnText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 16,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: '#F3F4F6',
-    borderRadius: borderRadius.xl,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  imageBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageBtnIcon: {
-    fontSize: 20,
-  },
-  input: {
-    flex: 1,
-    height: 44,
-    fontSize: fontSize.md,
-    color: colors.text,
-  },
-  sendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sendBtnDisabled: {
-    backgroundColor: colors.textLight,
-  },
-  sendIcon: {
-    color: '#FFF',
-    fontSize: 20,
-    fontWeight: '700',
-    marginTop: -1,
-  },
-});

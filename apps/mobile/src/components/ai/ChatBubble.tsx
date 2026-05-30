@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { fontSize, spacing, borderRadius } from '../../theme/tokens';
+import { fontSize, spacing, borderRadius, shadows } from '../../theme/tokens';
 import { useTheme } from '../../theme/ThemeContext';
 import { SearchResultCard } from './SearchResultCard';
 
@@ -27,79 +27,145 @@ function parseRestaurants(text: string): { intro: string; restaurants: string[] 
   return { intro, restaurants };
 }
 
-function RestaurantCard({ text, onPress }: { text: string; onPress?: (name: string) => void }) {
+function RestaurantCard({
+  text,
+  onPress,
+  styles,
+}: {
+  text: string;
+  onPress?: (name: string) => void;
+  styles: ReturnType<typeof createStyles>;
+}) {
   const { t } = useTranslation();
-  const { colors } = useTheme();
   const lines = text.split('\n').filter((l) => l.trim());
   const name = lines[0]?.replace(/🍽️?\s*\**/g, '').replace(/\**/g, '').trim() || '';
 
   const getField = (emoji: string) => {
     const line = lines.find((l) => l.includes(emoji));
-    return line?.split('：')[1]?.trim() || '';
+    return line?.replace(new RegExp(`^.*${emoji}\\s*`), '').replace(/：/g, ':').split(':').pop()?.trim() || line?.trim() || '';
   };
 
   return (
-    <TouchableOpacity
-      style={styles.restaurantCard}
-      activeOpacity={0.7}
-      onPress={() => onPress?.(name)}
-    >
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardName}>{name}</Text>
-      </View>
-      <View style={styles.cardBody}>
-        {getField('📍') ? (
-          <View style={styles.cardRow}>
-            <Text style={styles.cardEmoji}>📍</Text>
-            <Text style={styles.cardDetail}>{getField('📍')}</Text>
-          </View>
-        ) : null}
-        {getField('💰') ? (
-          <View style={styles.cardRow}>
-            <Text style={styles.cardEmoji}>💰</Text>
-            <Text style={styles.cardDetail}>{getField('💰')}</Text>
-          </View>
-        ) : null}
-        {getField('⭐') ? (
-          <View style={styles.cardRow}>
-            <Text style={styles.cardEmoji}>⭐</Text>
-            <Text style={styles.cardDetail}>{getField('⭐')}</Text>
-          </View>
-        ) : null}
-        {getField('🔥') ? (
-          <View style={styles.cardRow}>
-            <Text style={styles.cardEmoji}>🔥</Text>
-            <Text style={styles.cardDetail}>{getField('🔥')}</Text>
-          </View>
-        ) : null}
-        {getField('💬') ? (
-          <View style={styles.cardRow}>
-            <Text style={styles.cardEmoji}>💬</Text>
-            <Text style={[styles.cardDetail, styles.cardReason]}>{getField('💬')}</Text>
-          </View>
-        ) : null}
-      </View>
-      <View style={styles.cardButton}>
-        <Text style={styles.cardButtonText}>{t('ai.viewDetails')}</Text>
+    <TouchableOpacity style={styles.restaurantCard} activeOpacity={0.7} onPress={() => onPress?.(name)}>
+      <Text style={styles.restName}>🍽️ {name}</Text>
+      {getField('📍') ? <Text style={styles.restLine}>📍 {getField('📍')}</Text> : null}
+      {getField('💰') ? <Text style={styles.restLine}>💰 {getField('💰')}</Text> : null}
+      {getField('⭐') ? <Text style={styles.restLine}>⭐ {getField('⭐')}</Text> : null}
+      {getField('🔥') ? <Text style={styles.restLine}>🔥 {getField('🔥')}</Text> : null}
+      {getField('💬') ? <Text style={styles.restReason}>💬 {getField('💬')}</Text> : null}
+      <View style={styles.restBtn}>
+        <Text style={styles.restBtnText}>{t('ai.viewDetails')}</Text>
       </View>
     </TouchableOpacity>
   );
 }
 
-export const ChatBubble: React.FC<Props> = ({ role, content, thinkingContent, imageUrl, searchResults, onRestaurantPress }) => {
+function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
+  return StyleSheet.create({
+    userWrap: { marginVertical: 8, paddingHorizontal: spacing.md, alignItems: 'flex-end', gap: 4 },
+    userBubble: {
+      backgroundColor: colors.primary,
+      maxWidth: '82%',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 12,
+    },
+    userText: { fontSize: 15, color: '#FFF', lineHeight: 22 },
+    userTime: { fontSize: 11, color: colors.textLight },
+    userImage: { width: 200, height: 150, borderRadius: 12, marginBottom: 4 },
+
+    assistantWrap: {
+      marginVertical: 8,
+      paddingHorizontal: spacing.md,
+      flexDirection: 'row',
+      gap: 8,
+      alignItems: 'flex-start',
+    },
+    assistantAvatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: '#FFF3ED',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 2,
+    },
+    assistantContent: { flex: 1, maxWidth: '88%', gap: 8 },
+    thinkingToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      alignSelf: 'flex-start',
+    },
+    thinkingToggleText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+    thinkingArrow: { fontSize: 14, color: colors.primary },
+    thinkingBox: {
+      backgroundColor: '#F5F5F5',
+      borderLeftWidth: 2,
+      borderLeftColor: colors.primary,
+      borderRadius: 8,
+      padding: 12,
+    },
+    thinkingText: { fontSize: 12, color: colors.textSecondary, lineHeight: 18 },
+    assistantText: {
+      fontSize: fontSize.sm,
+      color: colors.text,
+      lineHeight: 22,
+    },
+    restaurantCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 12,
+      gap: 6,
+      ...shadows.sm,
+    },
+    restName: { fontSize: 16, fontWeight: '700', color: colors.text },
+    restLine: { fontSize: 12, color: colors.textSecondary },
+    restReason: { fontSize: 12, color: colors.primary },
+    restBtn: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.primary,
+      borderRadius: borderRadius.full,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      marginTop: 4,
+    },
+    restBtnText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
+  });
+}
+
+export const ChatBubble: React.FC<Props> = ({
+  role,
+  content,
+  thinkingContent,
+  imageUrl,
+  searchResults,
+  onRestaurantPress,
+}) => {
   const { colors } = useTheme();
+  const { t, i18n } = useTranslation();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isUser = role === 'user';
   const [thinkingExpanded, setThinkingExpanded] = useState(false);
+  const thinkingLabel = i18n.language === 'zh-CN' ? t('ai.deepThinkingLabel') : t('ai.deepThinkingLabel');
 
   if (isUser) {
     return (
-      <View style={styles.userContainer}>
-        {imageUrl && (
-          <Image source={{ uri: imageUrl }} style={styles.userImage} />
-        )}
-        <View style={styles.userBubble}>
-          <Text style={styles.userText}>{content}</Text>
-        </View>
+      <View style={styles.userWrap}>
+        {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.userImage} /> : null}
+        {content ? (
+          <View style={styles.userBubble}>
+            <Text style={styles.userText}>{content}</Text>
+          </View>
+        ) : null}
       </View>
     );
   }
@@ -107,7 +173,7 @@ export const ChatBubble: React.FC<Props> = ({ role, content, thinkingContent, im
   const { intro, restaurants } = parseRestaurants(content);
 
   return (
-    <View style={styles.assistantContainer}>
+    <View style={styles.assistantWrap}>
       <View style={styles.assistantAvatar}>
         <Text style={{ fontSize: 14 }}>🤖</Text>
       </View>
@@ -118,9 +184,8 @@ export const ChatBubble: React.FC<Props> = ({ role, content, thinkingContent, im
             onPress={() => setThinkingExpanded(!thinkingExpanded)}
             activeOpacity={0.7}
           >
-            <Text style={styles.thinkingToggleText}>
-              {thinkingExpanded ? '▾ Deep Thinking' : '▸ Deep Thinking'}
-            </Text>
+            <Text style={styles.thinkingArrow}>{thinkingExpanded ? '▾' : '▸'}</Text>
+            <Text style={styles.thinkingToggleText}>{thinkingLabel}</Text>
           </TouchableOpacity>
         ) : null}
         {thinkingContent && thinkingExpanded ? (
@@ -128,12 +193,10 @@ export const ChatBubble: React.FC<Props> = ({ role, content, thinkingContent, im
             <Text style={styles.thinkingText}>{thinkingContent}</Text>
           </View>
         ) : null}
-        {searchResults && searchResults.length > 0 && (
-          <SearchResultCard results={searchResults} />
-        )}
+        {searchResults && searchResults.length > 0 ? <SearchResultCard results={searchResults} /> : null}
         {intro ? <Text style={styles.assistantText}>{intro}</Text> : null}
         {restaurants.map((r, i) => (
-          <RestaurantCard key={i} text={r} onPress={onRestaurantPress} />
+          <RestaurantCard key={i} text={r} onPress={onRestaurantPress} styles={styles} />
         ))}
         {!intro && restaurants.length === 0 && content ? (
           <Text style={styles.assistantText}>{content}</Text>
@@ -142,82 +205,3 @@ export const ChatBubble: React.FC<Props> = ({ role, content, thinkingContent, im
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  userContainer: { marginVertical: 4, paddingHorizontal: spacing.md, alignItems: 'flex-end' },
-  userBubble: {
-    backgroundColor: colors.primary, maxWidth: '80%',
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    borderRadius: borderRadius.lg, borderBottomRightRadius: borderRadius.xs,
-  },
-  userText: { fontSize: fontSize.md, color: '#FFF', lineHeight: 22 },
-  userImage: {
-    width: 200,
-    height: 150,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.xs,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-
-  assistantContainer: {
-    marginVertical: 4, paddingHorizontal: spacing.md,
-    flexDirection: 'row', gap: 8, alignItems: 'flex-start',
-  },
-  assistantAvatar: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: '#FFF3ED',
-    justifyContent: 'center', alignItems: 'center', marginTop: 2,
-  },
-  assistantContent: { flex: 1, maxWidth: '85%' },
-  assistantText: {
-    fontSize: fontSize.md, color: colors.text, lineHeight: 24,
-    backgroundColor: colors.surface, paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm, borderRadius: borderRadius.lg,
-    borderBottomLeftRadius: borderRadius.xs, borderWidth: 1, borderColor: colors.border,
-  },
-
-  restaurantCard: {
-    backgroundColor: colors.surface, borderRadius: borderRadius.lg,
-    borderWidth: 1, borderColor: colors.border, marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  cardHeader: {
-    backgroundColor: '#FFF3ED', paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    borderBottomWidth: 1, borderBottomColor: '#FFE8DD',
-  },
-  cardName: { fontSize: fontSize.md, fontWeight: '700', color: colors.primary },
-  cardBody: { padding: spacing.md, gap: 6 },
-  cardRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  cardEmoji: { fontSize: fontSize.sm, marginTop: 1 },
-  cardDetail: { flex: 1, fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
-  cardReason: { color: colors.textSecondary, fontStyle: 'italic' },
-  cardButton: {
-    backgroundColor: colors.primary, paddingVertical: spacing.sm,
-    alignItems: 'center', borderTopWidth: 1, borderTopColor: '#FFE8DD',
-  },
-  cardButtonText: { color: '#FFF', fontSize: fontSize.sm, fontWeight: '600' },
-
-  thinkingToggle: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 4,
-  },
-  thinkingToggleText: {
-    fontSize: 12,
-    color: '#FF6B35',
-    fontWeight: '600',
-  },
-  thinkingBox: {
-    backgroundColor: '#F5F5F5',
-    borderLeftWidth: 2,
-    borderLeftColor: '#FF6B35',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 6,
-  },
-  thinkingText: {
-    fontSize: 12,
-    color: '#666',
-    lineHeight: 18,
-  },
-});
