@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useOrderDetail, usePayOrder, useCancelOrder, useConfirmOrder, useOrderRealtime } from '../hooks';
+import { useOrderDetail, useCancelOrder, useConfirmOrder, useOrderRealtime } from '../hooks';
 import { spacing, fontSize, borderRadius, shadows } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 import { RealtimeStatusIndicator } from '../components/RealtimeStatusIndicator';
+import { DeliveryRouteMap } from '../components/DeliveryRouteMap';
+import { Loading } from '../components/Loading';
 
 export default function OrderDetailScreen({ route, navigation }: any) {
   const { t } = useTranslation();
@@ -67,15 +69,45 @@ export default function OrderDetailScreen({ route, navigation }: any) {
   });
 
   const { id } = route.params;
-  const { data } = useOrderDetail(id);
+  const { data, isLoading, isError, refetch } = useOrderDetail(id);
   const order = data?.data;
-  const payMut = usePayOrder();
   const cancelMut = useCancelOrder();
   const confirmMut = useConfirmOrder();
 
   const { status: realtimeStatus, statusText: realtimeStatusText, riderLocation, isConnected } = useOrderRealtime(id);
 
-  if (!order) return null;
+  const renderShell = (body: React.ReactNode) => (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backText}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{t('order.orderDetail')}</Text>
+        <View style={{ width: 24 }} />
+      </View>
+      {body}
+    </View>
+  );
+
+  if (isLoading) {
+    return renderShell(<Loading fullScreen message={t('common.loading')} />);
+  }
+
+  if (isError || !order) {
+    return renderShell(
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg }}>
+        <Text style={{ fontSize: fontSize.md, color: colors.textSecondary, marginBottom: spacing.md, textAlign: 'center' }}>
+          {t('order.loadFailed')}
+        </Text>
+        <TouchableOpacity
+          style={[styles.primaryBtn, { paddingHorizontal: spacing.xl }]}
+          onPress={() => refetch()}
+        >
+          <Text style={styles.primaryBtnText}>{t('common.retry')}</Text>
+        </TouchableOpacity>
+      </View>,
+    );
+  }
 
   // Use realtime status if available, otherwise fall back to order data
   const currentStatus = realtimeStatus !== null ? realtimeStatus : order.status;
@@ -93,7 +125,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} nestedScrollEnabled>
         {/* Status Card */}
         <View style={[styles.statusCard, { backgroundColor: statusCardColor }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -116,13 +148,28 @@ export default function OrderDetailScreen({ route, navigation }: any) {
           ) : null}
         </View>
 
-        {/* Address */}
         {order.addressSnapshot && (
           <View style={styles.section}>
-            <Text style={styles.addressText}>
-              📍 {order.addressSnapshot.name} {order.addressSnapshot.phone}
+            <Text style={styles.sectionTitle}>
+              {isDelivering ? '配送路线' : t('order.deliveryAddress', '收货地址')}
             </Text>
-            <Text style={styles.addressDetail}>{order.addressSnapshot.address}</Text>
+            {isDelivering ? (
+              <DeliveryRouteMap
+                shopLatitude={order.shop?.latitude ?? order.shopLatitude}
+                shopLongitude={order.shop?.longitude ?? order.shopLongitude}
+                riderLocation={riderLocation}
+                isConnected={isConnected}
+                addressName={`${order.addressSnapshot.name} ${order.addressSnapshot.phone}`}
+                addressDetail={order.addressSnapshot.address}
+              />
+            ) : (
+              <>
+                <Text style={styles.addressText}>
+                  📍 {order.addressSnapshot.name} {order.addressSnapshot.phone}
+                </Text>
+                <Text style={styles.addressDetail}>{order.addressSnapshot.address}</Text>
+              </>
+            )}
           </View>
         )}
 
@@ -170,7 +217,10 @@ export default function OrderDetailScreen({ route, navigation }: any) {
             }}>
               <Text style={styles.outlineBtnText}>{t('order.cancelOrder')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.primaryBtn} onPress={() => payMut.mutate({ id: order.id })}>
+            <TouchableOpacity
+              style={styles.primaryBtn}
+              onPress={() => navigation.navigate('Payment', { orderId: order.id, amount: order.payAmount })}
+            >
               <Text style={styles.primaryBtnText}>{t('order.goPay')}</Text>
             </TouchableOpacity>
           </>

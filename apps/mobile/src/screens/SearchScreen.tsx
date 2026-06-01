@@ -109,7 +109,10 @@ export default function SearchScreen({ navigation }: any) {
           data={shops}
           keyExtractor={(item: any) => String(item.id)}
           renderItem={({ item }: any) => (
-            <TouchableOpacity style={styles.resultCard} onPress={() => navigation.navigate('MapMain', { selectedShop: item })}>
+            <TouchableOpacity
+              style={styles.resultCard}
+              onPress={() => navigation.navigate('ShopDetail', { id: item.id })}
+            >
               <Text style={styles.resultName}>{item.name}</Text>
               <Text style={styles.resultMeta}>月售{item.monthlySales} · ⭐{Number(item.rating).toFixed(1)}</Text>
             </TouchableOpacity>

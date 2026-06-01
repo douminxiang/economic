@@ -9,7 +9,8 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
-import { Logger } from '@nestjs/common';
+import { Logger, Inject, forwardRef } from '@nestjs/common';
+import { OrderService } from '../order/order.service';
 
 @WebSocketGateway({ cors: true })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -19,7 +20,11 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(EventsGateway.name);
   private userSockets = new Map<number, Set<string>>(); // userId -> socketIds
 
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    @Inject(forwardRef(() => OrderService))
+    private orderService: OrderService,
+  ) {}
 
   handleConnection(client: Socket) {
     try {
@@ -64,6 +69,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { orderId: number },
   ) {
     client.join(`order:${data.orderId}`);
+    this.orderService.ensureRiderSimulation(data.orderId);
     return { event: 'tracking', data: { orderId: data.orderId, tracking: true } };
   }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { getSocket, connectSocket } from '../services/socket';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -36,15 +36,24 @@ export function useOrderRealtime(orderId: number): UseOrderRealtimeResult {
     const socket = getSocket();
     if (!socket) return;
 
-    setIsConnected(socket.connected);
+    const trackOrder = () => {
+      socket.emit('trackOrder', { orderId });
+    };
 
-    const onConnect = () => setIsConnected(true);
+    setIsConnected(socket.connected);
+    if (socket.connected) {
+      trackOrder();
+    }
+
+    const onConnect = () => {
+      setIsConnected(true);
+      trackOrder();
+    };
     const onDisconnect = () => setIsConnected(false);
     const onOrderStatusChanged = (data: OrderStatusPayload) => {
       if (data.orderId === orderId) {
         setStatus(data.status);
         setStatusText(data.statusText);
-        // Invalidate the order detail query so the UI refreshes
         qc.invalidateQueries({ queryKey: ['orders', orderId] });
         qc.invalidateQueries({ queryKey: ['orders'] });
       }
@@ -63,9 +72,6 @@ export function useOrderRealtime(orderId: number): UseOrderRealtimeResult {
     socket.on('disconnect', onDisconnect);
     socket.on('order:statusChanged', onOrderStatusChanged);
     socket.on('order:riderLocation', onRiderLocation);
-
-    // Subscribe to tracking for this order
-    socket.emit('trackOrder', { orderId });
 
     return () => {
       socket.off('connect', onConnect);

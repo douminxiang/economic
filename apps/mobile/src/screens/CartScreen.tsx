@@ -84,7 +84,7 @@ export default function CartScreen({ navigation }: any) {
         </View>
         <View style={styles.emptyContainer}>
           <EmptyView message={t('cart.empty')} hint={t('cart.emptyHint')} />
-          <TouchableOpacity style={styles.goShopBtn} onPress={() => navigation.navigate('Home')}>
+          <TouchableOpacity style={styles.goShopBtn} onPress={() => navigation.navigate('HomeMain')}>
             <Text style={styles.goShopText}>{t('cart.goShopping')}</Text>
           </TouchableOpacity>
         </View>

@@ -3,9 +3,11 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, Dimensions, Permiss
 import { useTranslation } from 'react-i18next';
 import { MapView, Marker } from 'react-native-amap3d';
 import { Geolocation } from 'react-native-amap-geolocation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNearbyShops } from '../hooks/useShops';
 import { useOrderList } from '../hooks/useOrders';
 import { useSocketEvent } from '../hooks/useSocket';
+import { connectSocket, getSocket } from '../services/socket';
 import { initAmapGeolocation } from '../utils/amapInit';
 import { fontSize, spacing, borderRadius } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
@@ -39,6 +41,7 @@ interface RiderLocation {
 export default function MapScreen({ navigation, route }: any) {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const selectedShopFromSearch = route?.params?.selectedShop;
   const [location, setLocation] = useState<{ latitude: number; longitude: number }>(DEFAULT_LOCATION);
   const [selectedShop, setSelectedShop] = useState<any>(selectedShopFromSearch || null);
@@ -102,6 +105,28 @@ export default function MapScreen({ navigation, route }: any) {
       setRiderLocation(data);
     }
   });
+
+  useSocketEvent<{ orderId: number; status: number }>('order:statusChanged', () => {
+    qc.invalidateQueries({ queryKey: ['orders'] });
+  });
+
+  // Join order room so rider location events are received
+  useEffect(() => {
+    if (!activeDeliveryOrder?.id) return;
+
+    connectSocket();
+    const socket = getSocket();
+    if (!socket) return;
+
+    const track = () => socket.emit('trackOrder', { orderId: activeDeliveryOrder.id });
+    track();
+    socket.on('connect', track);
+
+    return () => {
+      socket.off('connect', track);
+      socket.emit('untrackOrder', { orderId: activeDeliveryOrder.id });
+    };
+  }, [activeDeliveryOrder?.id]);
 
   // Clear rider location when order is no longer in delivery
   useEffect(() => {

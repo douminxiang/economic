@@ -3,11 +3,13 @@ import {
   Logger,
   BadRequestException,
   InternalServerErrorException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AlipaySdk } from 'alipay-sdk';
 import { PrismaService } from '../prisma/prisma.service';
-import { EventsGateway } from '../events/events.gateway';
+import { OrderService } from '../order/order.service';
 
 export interface PaymentCreateResult {
   /** 业务订单号（数据库 orderNo） */
@@ -30,7 +32,8 @@ export class PaymentService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-    private readonly eventsGateway: EventsGateway,
+    @Inject(forwardRef(() => OrderService))
+    private readonly orderService: OrderService,
   ) {
     const appId = this.configService.get<string>('ALIPAY_APP_ID', '').trim();
     const privateKey = this.configService.get<string>('ALIPAY_PRIVATE_KEY', '').trim();
@@ -83,53 +86,58 @@ export class PaymentService {
       };
     }
 
-    const notifyUrl = this.getNotifyUrl();
     const returnUrl = this.configService.get('ALIPAY_RETURN_URL', 'https://www.taobao.com');
-    const maxAttempts = 3;
+    const notifyCandidates = this.getNotifyUrlCandidates();
+    const maxAttempts = 5;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const alipayOutTradeNo = this.buildAlipayOutTradeNo(businessOrderNo, attempt);
 
-      try {
-        const wapParams = {
-          notifyUrl,
-          returnUrl,
-          bizContent: {
-            out_trade_no: alipayOutTradeNo,
-            product_code: 'QUICK_WAP_WAY',
-            total_amount: Number(amount).toFixed(2),
-            subject: subject.slice(0, 128),
-          },
-        };
-
-        const payFormHtml = this.alipaySdk.pageExecute('alipay.trade.wap.pay', 'POST', wapParams);
-        const payUrl = this.alipaySdk.pageExecute('alipay.trade.wap.pay', 'GET', wapParams);
-        const probe = await this.probePayGateway(payUrl);
-
-        if (probe.ok) {
-          return {
-            orderNo: businessOrderNo,
-            alipayOutTradeNo,
-            payUrl,
-            payFormHtml,
-            mockMode: false,
-            sandboxReady: true,
+      for (const notifyUrl of notifyCandidates) {
+        try {
+          const wapParams = {
+            notifyUrl,
+            returnUrl,
+            bizContent: {
+              out_trade_no: alipayOutTradeNo,
+              product_code: 'QUICK_WAP_WAY',
+              total_amount: Number(amount).toFixed(2),
+              subject: subject.slice(0, 128),
+            },
           };
-        }
 
-        this.logger.warn(
-          `Alipay sandbox probe failed (${probe.reason}), attempt ${attempt + 1}/${maxAttempts}, trade=${alipayOutTradeNo}`,
-        );
-      } catch (error) {
-        this.logger.error(`Create Alipay payment failed: ${businessOrderNo}`, error);
-        if (attempt === maxAttempts - 1) {
-          throw new InternalServerErrorException('创建支付宝订单失败');
+          const payFormHtml = this.alipaySdk.pageExecute('alipay.trade.wap.pay', 'POST', wapParams);
+          const payUrl = this.alipaySdk.pageExecute('alipay.trade.wap.pay', 'GET', wapParams);
+          const probe = await this.probePayGateway(payUrl);
+
+          if (probe.ok) {
+            this.logger.log(
+              `Alipay pay ready: trade=${alipayOutTradeNo} notify=${notifyUrl}`,
+            );
+            return {
+              orderNo: businessOrderNo,
+              alipayOutTradeNo,
+              payUrl,
+              payFormHtml,
+              mockMode: false,
+              sandboxReady: true,
+            };
+          }
+
+          this.logger.warn(
+            `Alipay probe failed (${probe.reason}) attempt=${attempt + 1} notify=${notifyUrl} trade=${alipayOutTradeNo}`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `Create Alipay payment failed: ${businessOrderNo} notify=${notifyUrl}`,
+            error,
+          );
         }
       }
     }
 
     throw new InternalServerErrorException(
-      '支付宝沙箱网关超时(504)，请稍后重试、用浏览器打开支付，或使用模拟支付',
+      '支付宝沙箱暂不可用（网关拒绝或超时），请点「模拟完成支付」或稍后重试',
     );
   }
 
@@ -228,8 +236,13 @@ export class PaymentService {
       });
       const location = res.headers.get('location') || '';
 
-      if (res.status === 504 || location.includes('/error')) {
+      if (res.status === 504 || /\/error\b/i.test(location)) {
         return { ok: false, reason: res.status === 504 ? '504' : 'error_redirect' };
+      }
+
+      // 沙箱有时返回 http:// 的 error 页
+      if (location.startsWith('http://') && location.includes('alipaydev.com/error')) {
+        return { ok: false, reason: 'error_redirect' };
       }
 
       if (location.includes('mobilepay') || location.includes('cashier')) {
@@ -278,36 +291,31 @@ export class PaymentService {
     }
   }
 
-  private getNotifyUrl(): string {
+  /** 沙箱 notify_url 必须是支付宝认可的 HTTPS 地址；example.com 会被拒导致 /error */
+  private getNotifyUrlCandidates(): string[] {
     const configured = this.configService.get<string>('ALIPAY_NOTIFY_URL', '').trim();
     const isLocal =
       !configured ||
       /localhost|127\.0\.0\.1|10\.0\.2\.2|192\.168\./i.test(configured);
 
-    if (isLocal) {
-      this.logger.warn(
-        'ALIPAY_NOTIFY_URL 非公网地址，沙箱下单使用占位 HTTPS 回调（依赖主动查单确认支付）',
-      );
-      return 'https://example.com/api/v1/payment/callback';
+    if (!isLocal) {
+      return [configured];
     }
-    return configured;
+
+    this.logger.warn(
+      'ALIPAY_NOTIFY_URL 为本地地址，沙箱下单使用 HTTPS 占位回调（依赖主动查单确认支付）',
+    );
+
+    const custom = this.configService.get<string>('ALIPAY_SANDBOX_NOTIFY_URL', '').trim();
+    const defaults = [
+      'https://www.taobao.com/notify',
+      'https://example.com/api/v1/payment/callback',
+    ];
+    return custom ? [custom, ...defaults.filter((u) => u !== custom)] : defaults;
   }
 
   private async markOrderPaidInternal(orderNo: string, payMethod: string) {
-    const order = await this.prisma.order.findUnique({ where: { orderNo } });
-    if (!order || order.status !== 0) return;
-
-    await this.prisma.order.update({
-      where: { orderNo },
-      data: { status: 1, payMethod, payTime: new Date() },
-    });
-
-    this.eventsGateway.emitOrderStatusChanged(order.userId, {
-      orderId: order.id,
-      orderNo: order.orderNo,
-      status: 1,
-      statusText: '已支付',
-    });
+    await this.orderService.markPaidFromPayment(orderNo, payMethod);
   }
 
   private formatPemKey(raw: string, type: 'private' | 'public'): string {

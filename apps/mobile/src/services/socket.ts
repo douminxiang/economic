@@ -1,19 +1,30 @@
 import { io, Socket } from 'socket.io-client';
 import { getStorage } from '../utils/storage';
 import { API_ORIGIN } from '../config/api';
+
 let socket: Socket | null = null;
 
 export const getSocket = (): Socket | null => socket;
 
 export const connectSocket = () => {
   const token = getStorage().getString('accessToken');
-  if (!token || socket?.connected) return;
+  if (!token) return;
+
+  if (socket?.connected) return;
+
+  if (socket) {
+    socket.auth = { token };
+    if (!socket.connected) {
+      socket.connect();
+    }
+    return;
+  }
 
   socket = io(API_ORIGIN, {
     auth: { token },
-    transports: ['websocket'],
+    transports: ['websocket', 'polling'],
     reconnection: true,
-    reconnectionAttempts: 5,
+    reconnectionAttempts: 10,
     reconnectionDelay: 1000,
   });
 
@@ -25,4 +36,9 @@ export const connectSocket = () => {
 export const disconnectSocket = () => {
   socket?.disconnect();
   socket = null;
+};
+
+export const reconnectSocket = () => {
+  disconnectSocket();
+  connectSocket();
 };

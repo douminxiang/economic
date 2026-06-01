@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RootNavigator } from './navigation/RootNavigator';
 import { initAmapGeolocation } from './utils/amapInit';
 import { ThemeProvider } from './theme/ThemeContext';
-import { connectSocket, disconnectSocket } from './services/socket';
 import { ensureI18n } from './i18n';
 import { useAuthStore } from './stores/authStore';
 import { Loading } from './components/Loading';
@@ -21,12 +20,7 @@ const App = () => {
     ensureI18n();
     useAuthStore.getState().hydrateFromStorage();
     setReady(true);
-
     initAmapGeolocation();
-    connectSocket();
-    return () => {
-      disconnectSocket();
-    };
   }, []);
 
   if (!ready) {

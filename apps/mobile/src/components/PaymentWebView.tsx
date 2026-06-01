@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Linking,
-  Platform,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import type { WebViewErrorEvent, WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes';
@@ -21,6 +20,7 @@ const MOBILE_USER_AGENT =
 
 const ALIPAY_GATEWAY_BASE = 'https://openapi-sandbox.dl.alipaydev.com';
 const MAX_AUTO_RETRY = 2;
+const LOAD_TIMEOUT_MS = 25000;
 
 type LoadMode = 'get' | 'form';
 
@@ -71,13 +71,14 @@ export default function PaymentWebView({
 
   useEffect(() => {
     if (visible) {
+      // 与后端 probe 一致：先用 GET 链接，失败再切 POST 表单
       setLoadMode('get');
       setLoadError(null);
       setLoading(true);
       autoRetryRef.current = 0;
       setReloadKey((k) => k + 1);
     }
-  }, [visible, payUrl]);
+  }, [visible, payUrl, payFormHtml]);
 
   const bumpReload = useCallback((nextMode?: LoadMode) => {
     if (nextMode) setLoadMode(nextMode);
@@ -104,11 +105,15 @@ export default function PaymentWebView({
         setLoadError(t('payment.webviewAlipayError'));
         return;
       }
+      if (/gateway\.do/i.test(url) && payFormHtml && loadMode === 'get') {
+        bumpReload('form');
+        return;
+      }
       if (isAlipaySuccessUrl(url)) {
         onCheckPayment();
       }
     },
-    [onCheckPayment, setTimeoutError, t],
+    [bumpReload, loadMode, onCheckPayment, payFormHtml, setTimeoutError, t],
   );
 
   const tryAutoRecover = useCallback(
@@ -138,6 +143,16 @@ export default function PaymentWebView({
     },
     [bumpReload, loadMode, onRefreshPay, setTimeoutError],
   );
+
+  useEffect(() => {
+    if (!visible || loadError || !loading) return;
+    const timer = setTimeout(() => {
+      void tryAutoRecover('504');
+      setLoadError((prev) => prev ?? t('payment.webview504Error'));
+      setLoading(false);
+    }, LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [visible, loadError, loading, tryAutoRecover, t]);
 
   const handleWebError = useCallback(
     (event: WebViewErrorEvent) => {
@@ -220,7 +235,7 @@ export default function PaymentWebView({
               thirdPartyCookiesEnabled
               mixedContentMode="always"
               setSupportMultipleWindows={false}
-              androidLayerType={Platform.OS === 'android' ? 'software' : undefined}
+              startInLoadingState
               onLoadStart={() => {
                 setLoading(true);
                 setLoadError(null);

@@ -21,7 +21,8 @@ async function bootstrap() {
   // Serve uploaded files in mock mode
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
-  await app.listen(3000);
-  console.log('Server running on http://localhost:3000');
+  const port = Number(process.env.PORT) || 3000;
+  await app.listen(port, '0.0.0.0');
+  console.log(`Server running on http://0.0.0.0:${port} (emulator: http://10.0.2.2:${port})`);
 }
 bootstrap();

@@ -5,6 +5,7 @@ import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import AddressScreen from '../screens/AddressScreen';
 import AddressPickerScreen from '../screens/AddressPickerScreen';
 import FavoriteScreen from '../screens/FavoriteScreen';
+import HistoryScreen from '../screens/HistoryScreen';
 import SettingsScreen from '../screens/profile/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
@@ -17,5 +18,6 @@ export const ProfileStack = () => (
     <Stack.Screen name="Address" component={AddressScreen} />
     <Stack.Screen name="AddressPicker" component={AddressPickerScreen} />
     <Stack.Screen name="Favorite" component={FavoriteScreen} />
+    <Stack.Screen name="History" component={HistoryScreen} />
   </Stack.Navigator>
 );

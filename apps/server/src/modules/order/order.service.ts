@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentService } from '../payment/payment.service';
 import { EventsGateway } from '../events/events.gateway';
@@ -13,9 +13,10 @@ const STATUS_TEXT: Record<number, string> = {
 };
 
 @Injectable()
-export class OrderService {
+export class OrderService implements OnModuleInit {
   private readonly logger = new Logger(OrderService.name);
   private riderLocationIntervals = new Map<number, ReturnType<typeof setInterval>>();
+  private autoAdvanceTimers = new Map<number, ReturnType<typeof setTimeout>[]>();
 
   constructor(
     private prisma: PrismaService,
@@ -30,6 +31,111 @@ export class OrderService {
     return `${date}${rand}`;
   }
 
+  async onModuleInit() {
+    const inProgress = await this.prisma.order.findMany({
+      where: { status: { in: [1, 2, 3] } },
+      select: { id: true, userId: true, status: true, payTime: true, updatedAt: true },
+    });
+
+    for (const order of inProgress) {
+      if (order.status === 3) {
+        this.startRiderLocationSimulation(order.id);
+      } else {
+        this.resumeAutoAdvance(order.id, order.userId, order.status, order.payTime ?? order.updatedAt);
+      }
+    }
+
+    if (inProgress.length > 0) {
+      this.logger.log(`Resumed fulfillment for ${inProgress.length} in-progress order(s)`);
+    }
+  }
+
+  /** Recover auto-advance timers after server restart (dev hot-reload). */
+  private resumeAutoAdvance(
+    orderId: number,
+    userId: number,
+    currentStatus: number,
+    paidAt: Date,
+  ) {
+    const elapsedMs = Date.now() - paidAt.getTime();
+    const preparingAt = 3000;
+    const deliveringAt = 8000;
+
+    if (currentStatus === 1) {
+      if (elapsedMs >= deliveringAt) {
+        void this.advanceOrderStatus(orderId, userId, 3);
+        return;
+      }
+      if (elapsedMs >= preparingAt) {
+        void this.advanceOrderStatus(orderId, userId, 2);
+        const delay = deliveringAt - elapsedMs;
+        const toDelivering = setTimeout(() => {
+          void this.advanceOrderStatus(orderId, userId, 3);
+        }, delay);
+        this.autoAdvanceTimers.set(orderId, [toDelivering]);
+        return;
+      }
+      this.scheduleAutoAdvanceWithDelay(orderId, userId, preparingAt - elapsedMs, deliveringAt - elapsedMs);
+      return;
+    }
+
+    if (currentStatus === 2) {
+      if (elapsedMs >= deliveringAt) {
+        void this.advanceOrderStatus(orderId, userId, 3);
+        return;
+      }
+      const delay = deliveringAt - elapsedMs;
+      const toDelivering = setTimeout(() => {
+        void this.advanceOrderStatus(orderId, userId, 3);
+      }, delay);
+      this.autoAdvanceTimers.set(orderId, [toDelivering]);
+    }
+  }
+
+  private scheduleAutoAdvanceWithDelay(
+    orderId: number,
+    userId: number,
+    preparingDelayMs: number,
+    deliveringDelayMs: number,
+  ) {
+    this.clearAutoAdvance(orderId);
+
+    const toPreparing = setTimeout(() => {
+      void this.advanceOrderStatus(orderId, userId, 2);
+    }, Math.max(0, preparingDelayMs));
+
+    const toDelivering = setTimeout(() => {
+      void this.advanceOrderStatus(orderId, userId, 3);
+    }, Math.max(0, deliveringDelayMs));
+
+    this.autoAdvanceTimers.set(orderId, [toPreparing, toDelivering]);
+  }
+
+  /** Called by PaymentService after successful payment (mock or callback). */
+  async markPaidFromPayment(orderNo: string, payMethod: string) {
+    const order = await this.prisma.order.findUnique({ where: { orderNo } });
+    if (!order || order.status !== 0) return;
+
+    await this.prisma.order.update({
+      where: { orderNo },
+      data: { status: 1, payMethod, payTime: new Date() },
+    });
+    await this.emitStatusChange(order.id, order.userId, 1);
+  }
+
+  /** Ensure rider location simulation is running for a delivering order. */
+  ensureRiderSimulation(orderId: number) {
+    if (this.riderLocationIntervals.has(orderId)) return;
+    this.prisma.order
+      .findUnique({ where: { id: orderId }, select: { status: true } })
+      .then((order) => {
+        if (order?.status === 3) {
+          this.startRiderLocationSimulation(orderId);
+        }
+      })
+      .catch((err) => this.logger.warn(`ensureRiderSimulation failed for order ${orderId}`, err));
+  }
+
   private async emitStatusChange(orderId: number, userId: number, status: number) {
     try {
       const orderNo = (await this.prisma.order.findUnique({ where: { id: orderId } }))?.orderNo || '';
@@ -40,45 +146,74 @@ export class OrderService {
         statusText: STATUS_TEXT[status] || '未知状态',
       });
 
-      // Start simulated rider location tracking when status changes to delivering (3)
+      if (status === 1) {
+        this.scheduleAutoAdvance(orderId, userId);
+      }
       if (status === 3) {
         this.startRiderLocationSimulation(orderId);
+      }
+      if (status === 4 || status === 5) {
+        this.clearAutoAdvance(orderId);
+        this.stopRiderLocationSimulation(orderId);
       }
     } catch (err) {
       this.logger.error(`Failed to emit status change for order ${orderId}`, err);
     }
   }
 
+  private scheduleAutoAdvance(orderId: number, userId: number) {
+    this.scheduleAutoAdvanceWithDelay(orderId, userId, 3000, 8000);
+  }
+
+  private clearAutoAdvance(orderId: number) {
+    const timers = this.autoAdvanceTimers.get(orderId);
+    if (timers) {
+      timers.forEach(clearTimeout);
+      this.autoAdvanceTimers.delete(orderId);
+    }
+  }
+
+  private async advanceOrderStatus(orderId: number, userId: number, targetStatus: number) {
+    const order = await this.prisma.order.findFirst({ where: { id: orderId, userId } });
+    if (!order || order.status >= targetStatus || order.status === 4 || order.status === 5) {
+      return;
+    }
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: targetStatus },
+    });
+    await this.emitStatusChange(orderId, userId, targetStatus);
+  }
+
   private startRiderLocationSimulation(orderId: number) {
-    // Clear any existing interval for this order
     this.stopRiderLocationSimulation(orderId);
 
-    let elapsed = 0;
-    const maxDuration = 30 * 60; // 30 minutes in seconds
-    const interval = 5000; // 5 seconds
-
-    // Simulate rider starting from a fixed location near Hangzhou center
+    const interval = 2000; // 2 秒推送一次，便于演示
     const startLat = 30.2741;
     const startLng = 120.1551;
+    let progress = 0;
 
-    const timer = setInterval(() => {
-      elapsed += interval / 1000;
-      if (elapsed >= maxDuration) {
-        this.stopRiderLocationSimulation(orderId);
-        return;
-      }
-
-      // Simulate movement: slowly drift toward destination
-      const progress = elapsed / maxDuration;
+    const emitLocation = () => {
       const latitude = startLat + progress * 0.02;
       const longitude = startLng - progress * 0.01;
-      const estimatedMinutes = Math.max(0, Math.ceil((maxDuration - elapsed) / 60));
+      const estimatedMinutes = Math.max(0, Math.ceil((1 - progress) * 30));
 
       this.eventsGateway.emitRiderLocation(orderId, {
         latitude,
         longitude,
         estimatedMinutes,
       });
+    };
+
+    emitLocation();
+
+    const timer = setInterval(() => {
+      progress = Math.min(1, progress + 0.04);
+      emitLocation();
+      if (progress >= 1) {
+        this.stopRiderLocationSimulation(orderId);
+      }
     }, interval);
 
     this.riderLocationIntervals.set(orderId, timer);
@@ -186,7 +321,7 @@ export class OrderService {
         where,
         include: {
           items: { select: { name: true, image: true, quantity: true } },
-          shop: { select: { name: true } },
+          shop: { select: { name: true, latitude: true, longitude: true, address: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -213,7 +348,7 @@ export class OrderService {
       where: { id, userId },
       include: {
         items: true,
-        shop: { select: { name: true } },
+        shop: { select: { name: true, latitude: true, longitude: true, address: true } },
       },
     });
     if (!order) throw new NotFoundException('订单不存在');
@@ -221,6 +356,12 @@ export class OrderService {
     return {
       ...order,
       shopName: order.shop.name,
+      shop: {
+        name: order.shop.name,
+        address: order.shop.address,
+        latitude: order.shop.latitude != null ? Number(order.shop.latitude) : null,
+        longitude: order.shop.longitude != null ? Number(order.shop.longitude) : null,
+      },
       payAmount: Number(order.payAmount),
       totalAmount: Number(order.totalAmount),
       deliveryFee: Number(order.deliveryFee),
@@ -301,9 +442,7 @@ export class OrderService {
       data: { status: 5 },
     });
 
-    // Emit status change: cancelled (5)
     await this.emitStatusChange(id, userId, 5);
-    this.stopRiderLocationSimulation(id);
 
     return { id, status: 5 };
   }
@@ -319,9 +458,7 @@ export class OrderService {
       data: { status: 4 },
     });
 
-    // Emit status change: completed (4)
     await this.emitStatusChange(id, userId, 4);
-    this.stopRiderLocationSimulation(id);
 
     return { id, status: 4 };
   }

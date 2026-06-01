@@ -29,7 +29,9 @@ export default function FavoriteScreen({ navigation }: any) {
         renderItem={({ item }: any) => (
           <TouchableOpacity
             style={styles.card}
-            onPress={() => navigation.navigate('ShopDetail', { id: item.shopId })}
+            onPress={() =>
+              navigation.navigate('Home', { screen: 'ShopDetail', params: { id: item.shopId } })
+            }
           >
             <View style={styles.cardImage} />
             <View style={styles.cardInfo}>

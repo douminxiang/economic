@@ -243,7 +243,16 @@ export default function PaymentScreen({ navigation, route }: any) {
       throw new Error('暂不支持该支付方式');
     } catch (err: any) {
       setPhase('idle');
-      Alert.alert('支付失败', err?.message || '请重试');
+      const msg = err?.message || '请重试';
+      const sandboxDown = /沙箱|504|网关|alipay|Alipay/i.test(msg);
+      if (sandboxDown && selectedMethod === 'alipay') {
+        Alert.alert('支付宝沙箱暂不可用', `${msg}\n\n可改用底部「模拟完成支付」`, [
+          { text: '知道了', style: 'cancel' },
+          { text: '模拟支付', onPress: () => handleMockPay() },
+        ]);
+      } else {
+        Alert.alert('支付失败', msg);
+      }
     }
   };
 

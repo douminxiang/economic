@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getStorage } from '../utils/storage';
 import api from '../services/api';
+import { reconnectSocket, disconnectSocket } from '../services/socket';
 import type { User } from '@economic/shared';
 
 interface AuthState {
@@ -37,6 +38,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       getStorage().set('accessToken', accessToken);
       getStorage().set('refreshToken', refreshToken);
       set({ user, isAuthenticated: true, isLoading: false });
+      reconnectSocket();
     } catch (error) {
       set({ isLoading: false });
       throw error;
@@ -51,6 +53,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       getStorage().set('accessToken', accessToken);
       getStorage().set('refreshToken', refreshToken);
       set({ user, isAuthenticated: true, isLoading: false });
+      reconnectSocket();
     } catch (error) {
       set({ isLoading: false });
       throw error;
@@ -65,6 +68,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       getStorage().set('accessToken', accessToken);
       getStorage().set('refreshToken', refreshToken);
       set({ user, isAuthenticated: true, isLoading: false });
+      reconnectSocket();
     } catch (error) {
       set({ isLoading: false });
       throw error;
@@ -75,6 +79,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     getStorage().remove('accessToken');
     getStorage().remove('refreshToken');
     set({ user: null, isAuthenticated: false });
+    disconnectSocket();
   },
 
   loadUser: async () => {

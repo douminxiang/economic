@@ -38,7 +38,12 @@ export default function HistoryScreen() {
     const shop = item.shop || {};
     const images = Array.isArray(shop.images) ? shop.images : [];
     return (
-      <TouchableOpacity style={styles.card} onPress={() => (navigation as any).navigate('ShopDetail', { id: shop.id })}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() =>
+          (navigation as any).navigate('Home', { screen: 'ShopDetail', params: { id: shop.id } })
+        }
+      >
         {images.length > 0 ? <Image source={{ uri: images[0] }} style={styles.cardImage} /> : <View style={styles.cardImage} />}
         <View style={styles.cardInfo}>
           <Text style={styles.cardName}>{shop.name}</Text>
