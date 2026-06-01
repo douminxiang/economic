@@ -299,7 +299,7 @@ model TrackEvent {
   platform   String   @db.VarChar(20)
   appVersion String?  @db.VarChar(20)
   deviceId   String?  @db.VarChar(100)
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.DateTime(3)
 
   @@index([userId])
   @@index([eventType])

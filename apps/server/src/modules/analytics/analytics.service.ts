@@ -10,6 +10,7 @@ export class AnalyticsService {
 
   async trackEvent(userId: number | null, dto: TrackEventDto) {
     try {
+      // Omit createdAt — DB CURRENT_TIMESTAMP uses session time_zone (+08:00).
       return await this.prisma.trackEvent.create({
         data: {
           userId,
@@ -19,6 +20,17 @@ export class AnalyticsService {
           platform: dto.platform,
           appVersion: dto.appVersion,
           deviceId: dto.deviceId,
+        },
+        select: {
+          id: true,
+          userId: true,
+          eventType: true,
+          eventName: true,
+          properties: true,
+          platform: true,
+          appVersion: true,
+          deviceId: true,
+          createdAt: true,
         },
       });
     } catch (error) {

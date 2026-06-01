@@ -7,7 +7,14 @@ import { ensureI18n } from './i18n';
 import { useAuthStore } from './stores/authStore';
 import { Loading } from './components/Loading';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      retryDelay: 1000,
+    },
+  },
+});
 
 const App = () => {
   const bootstrapped = useRef(false);

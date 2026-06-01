@@ -7,12 +7,13 @@ import {
   StyleSheet,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { launchImageLibrary } from 'react-native-image-picker';
 import { fontSize, spacing, borderRadius } from '../../theme/tokens';
 import { useTheme } from '../../theme/ThemeContext';
 import { uploadApi } from '../../services/api';
+import { normalizeUploadFile, showImagePickMenu } from '../../utils/imagePick';
 
 interface Props {
   onSend: (message: string, imageUrl?: string) => void;
@@ -106,33 +107,43 @@ export const ChatInput: React.FC<Props> = ({ onSend, disabled }) => {
   const [text, setText] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageName, setImageName] = useState('food_photo.jpg');
+  const [imageMime, setImageMime] = useState('image/jpeg');
   const [imageSize, setImageSize] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadPercent, setUploadPercent] = useState(0);
 
-  const handlePickImage = async () => {
-    try {
-      const result = await launchImageLibrary({
-        mediaType: 'photo',
-        maxWidth: 1024,
-        maxHeight: 1024,
-        quality: 0.8,
-      });
-
-      if (result.assets?.[0]?.uri) {
-        const asset = result.assets[0];
-        setImageUri(asset.uri!);
-        setImageName(asset.fileName || 'food_photo.jpg');
+  const handlePickImage = () => {
+    showImagePickMenu(
+      {
+        title: t('ai.imagePickTitle'),
+        library: t('ai.imagePickLibrary'),
+        camera: t('ai.imagePickCamera'),
+        cancel: t('common.cancel'),
+      },
+      (asset) => {
+        const file = normalizeUploadFile(asset);
+        setImageUri(file.uri);
+        setImageMime(file.type);
+        setImageName(file.name);
         const sizeMb = asset.fileSize ? (asset.fileSize / (1024 * 1024)).toFixed(1) : '1.2';
         setImageSize(`${sizeMb} MB`);
-      }
-    } catch (error) {
-      console.log('[ChatInput] Image picker error:', error);
-    }
+      },
+      () => {
+        Alert.alert(t('ai.imagePickEmptyTitle'), t('ai.imagePickEmptyMessage'));
+      },
+      (code) => {
+        if (code === 'camera_permission_denied') {
+          Alert.alert(t('ai.imagePickFailed'), t('ai.cameraPermissionDenied'));
+        } else {
+          Alert.alert(t('ai.imagePickFailed'), code);
+        }
+      },
+    );
   };
 
   const clearImage = () => {
     setImageUri(null);
+    setImageMime('image/jpeg');
     setUploadPercent(0);
   };
 
@@ -150,14 +161,21 @@ export const ChatInput: React.FC<Props> = ({ onSend, disabled }) => {
         }, 200);
         const uploadResult = await uploadApi.uploadImage({
           uri: imageUri,
-          type: 'image/jpeg',
-          name: `chat_${Date.now()}.jpg`,
+          type: imageMime,
+          name: imageName,
         });
         clearInterval(progressTimer);
         setUploadPercent(100);
-        uploadedUrl = (uploadResult as any)?.data?.url || (uploadResult as any)?.url;
-      } catch (error) {
+        uploadedUrl = uploadResult?.data?.url;
+        if (!uploadedUrl) {
+          throw new Error('missing url');
+        }
+      } catch (error: any) {
         console.log('[ChatInput] Image upload error:', error);
+        Alert.alert(t('common.error'), error?.message || t('ai.imageUploadFailed'));
+        setUploading(false);
+        setUploadPercent(0);
+        return;
       }
       setUploading(false);
       setUploadPercent(0);

@@ -64,7 +64,7 @@ export default function HomeScreen({ navigation }: any) {
   const { data: shopsData, fetchNextPage, hasNextPage, isFetchingNextPage, refetch, isRefetching, isError: shopsError, error: shopsErrorObj, isLoading: shopsLoading } = useRecommendedShops();
   const shops = shopsData?.pages?.flatMap((page: any) => page.data?.items || []) || [];
 
-  const isLoading = catsLoading && shops.length === 0;
+  const isLoading = (catsLoading || shopsLoading) && shops.length === 0 && !catsError && !shopsError;
   const hasError = catsError || shopsError;
   const errorMessage = (catsErrorObj as any)?.message || (shopsErrorObj as any)?.message || '网络连接失败';
 

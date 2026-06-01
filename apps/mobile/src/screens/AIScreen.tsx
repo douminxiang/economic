@@ -27,6 +27,7 @@ export default function AIScreen({ navigation }: any) {
   const setCurrentConversation = useStore(useAIStore, (s) => s.setCurrentConversation);
   const clearMessages = useStore(useAIStore, (s) => s.clearMessages);
   const [thinkingEnabled, setThinkingEnabled] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
 
   const styles = useMemo(
     () =>
@@ -159,9 +160,10 @@ export default function AIScreen({ navigation }: any) {
           useAIStore.getState().setSearchResults(searchResults);
         },
         imageUrl,
+        webSearchEnabled,
       );
     },
-    [currentConversationId, thinkingEnabled, t],
+    [currentConversationId, thinkingEnabled, webSearchEnabled, t],
   );
 
   const handleRestaurantPress = useCallback(
@@ -191,6 +193,16 @@ export default function AIScreen({ navigation }: any) {
         <Text style={styles.headerTitle}>{t('ai.title')}</Text>
         <View style={styles.headerRight}>
           <TouchableOpacity
+            style={[styles.thinkingToggle, webSearchEnabled && styles.thinkingToggleActive]}
+            onPress={() => setWebSearchEnabled(!webSearchEnabled)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.thinkingEmoji}>🌐</Text>
+            <Text style={[styles.thinkingLabel, webSearchEnabled && styles.thinkingLabelActive]}>
+              {t('ai.webSearch')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             style={[styles.thinkingToggle, thinkingEnabled && styles.thinkingToggleActive]}
             onPress={() => setThinkingEnabled(!thinkingEnabled)}
             activeOpacity={0.7}
@@ -219,16 +231,12 @@ export default function AIScreen({ navigation }: any) {
 
             <View style={styles.featureRow}>
               <View style={styles.featureCard}>
-                <Text style={styles.featureIcon}>🔍</Text>
-                <Text style={styles.featureText}>{t('ai.smartSearch')}</Text>
+                <Text style={styles.featureIcon}>📷</Text>
+                <Text style={styles.featureText}>{t('ai.multimodal')}</Text>
               </View>
               <View style={styles.featureCard}>
-                <Text style={styles.featureIcon}>⭐</Text>
-                <Text style={styles.featureText}>{t('ai.curatedRec')}</Text>
-              </View>
-              <View style={styles.featureCard}>
-                <Text style={styles.featureIcon}>📍</Text>
-                <Text style={styles.featureText}>{t('ai.nearbyShops')}</Text>
+                <Text style={styles.featureIcon}>🌐</Text>
+                <Text style={styles.featureText}>{t('ai.webSearch')}</Text>
               </View>
             </View>
 

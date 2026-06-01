@@ -18,6 +18,7 @@ export const MainTabs = () => {
   return (
     <Tab.Navigator
       screenOptions={{
+        lazy: true,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textLight,
         tabBarStyle: {

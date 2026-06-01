@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSubmitReview } from '../hooks';
+import { ImageUploader } from '../components';
 import { spacing, fontSize, borderRadius, shadows, colors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -15,7 +25,16 @@ export default function ReviewSubmitScreen({ route, navigation }: any) {
   const [deliveryRating, setDeliveryRating] = useState(4);
   const [content, setContent] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([t('review.tags.tasty')]);
+  const [images, setImages] = useState<string[]>([]);
   const submitMut = useSubmitReview();
+
+  const addReviewImage = (url: string) => {
+    setImages((prev) => (prev.includes(url) ? prev : [...prev, url].slice(0, 3)));
+  };
+
+  const removeReviewImage = (url: string) => {
+    setImages((prev) => prev.filter((u) => u !== url));
+  };
 
   const QUICK_TAGS = [
     t('review.tags.tasty'),
@@ -41,6 +60,7 @@ export default function ReviewSubmitScreen({ route, navigation }: any) {
         deliveryRating,
         content,
         tags: selectedTags,
+        images: images.length ? images : undefined,
       },
       {
         onSuccess: () => {
@@ -108,6 +128,27 @@ export default function ReviewSubmitScreen({ route, navigation }: any) {
           />
         </View>
 
+        {/* Photos (OSS) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('review.photos')}</Text>
+          <View style={styles.photoRow}>
+            {images.map((uri) => (
+              <View key={uri} style={styles.photoWrap}>
+                <Image source={{ uri }} style={styles.photoThumb} />
+                <TouchableOpacity
+                  style={styles.photoRemove}
+                  onPress={() => removeReviewImage(uri)}
+                >
+                  <Text style={styles.photoRemoveText}>×</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            {images.length < 3 ? (
+              <ImageUploader onChange={addReviewImage} size={72} />
+            ) : null}
+          </View>
+        </View>
+
         {/* Quick Tags */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('review.quickTags')}</Text>
@@ -170,6 +211,21 @@ const styles = StyleSheet.create({
   tagActive: { backgroundColor: '#FFF3E0' },
   tagText: { fontSize: fontSize.sm, color: colors.textSecondary },
   tagTextActive: { color: colors.primary },
+  photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, alignItems: 'center' },
+  photoWrap: { position: 'relative' },
+  photoThumb: { width: 72, height: 72, borderRadius: borderRadius.md },
+  photoRemove: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoRemoveText: { color: '#FFF', fontSize: 14, fontWeight: '700', lineHeight: 18 },
   bottomBar: {
     backgroundColor: colors.surface, paddingHorizontal: spacing.md,
     paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.border,

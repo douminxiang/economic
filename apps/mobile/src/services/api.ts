@@ -4,15 +4,18 @@ import { API_BASE_URL } from '../config/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000,
+  timeout: 20000,
   headers: { 'Content-Type': 'application/json' },
 });
 
-// 请求拦截器：注入 token
+// 请求拦截器：注入 token；FormData 上传时不能带 application/json
 api.interceptors.request.use((config) => {
   const token = getStorage().getString('accessToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (config.data && typeof (config.data as FormData).append === 'function') {
+    delete config.headers['Content-Type'];
   }
   return config;
 });
@@ -156,12 +159,11 @@ export const uploadApi = {
     const formData = new FormData();
     formData.append('file', {
       uri: file.uri,
-      type: file.type,
-      name: file.name,
+      type: file.type || 'image/jpeg',
+      name: file.name || `photo_${Date.now()}.jpg`,
     } as any);
     return api.post('/upload/image', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 30000,
+      timeout: 60000,
     });
   },
 };

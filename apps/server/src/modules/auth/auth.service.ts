@@ -12,6 +12,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { SendCodeDto } from './dto/send-code.dto';
 import { SmsLoginDto } from './dto/sms-login.dto';
+import { SmsService } from '../sms/sms.service';
 
 // In-memory SMS code storage (mock mode, use Redis in production)
 interface SmsRecord {
@@ -28,6 +29,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private smsService: SmsService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -113,13 +115,15 @@ export class AuthService {
     });
     this.smsCooldowns.set(phone, Date.now());
 
-    // Mock mode: log to console instead of sending real SMS
-    console.log(`\n📱 [SMS MOCK] 验证码发送到 ${phone}: ${code}\n`);
+    await this.smsService.sendVerificationCode(phone, code);
 
-    // TODO: Replace with real SMS API call (e.g., Aliyun SMS)
-    // await this.aliyunSms.send(phone, { code });
-
-    return { message: '验证码已发送', phone };
+    return {
+      message: this.smsService.isMockMode
+        ? '验证码已发送（开发模式：请查看服务端控制台）'
+        : '验证码已发送',
+      phone,
+      mockMode: this.smsService.isMockMode,
+    };
   }
 
   async smsLogin(dto: SmsLoginDto) {

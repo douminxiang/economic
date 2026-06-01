@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -43,6 +44,7 @@ export default function ProfileScreen({ navigation }: any) {
           justifyContent: 'center',
           alignItems: 'center',
         },
+        avatarImage: { width: 56, height: 56, borderRadius: 28 },
         avatarText: { fontSize: fontSize.xl, fontWeight: 'bold', color: colors.white },
         userDetails: { flex: 1, marginLeft: spacing.md },
         nickname: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
@@ -112,7 +114,13 @@ export default function ProfileScreen({ navigation }: any) {
         <Card style={styles.userCard}>
           <View style={styles.userInfo}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{user?.nickname ? user.nickname.charAt(0) : '?'}</Text>
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {user?.nickname ? user.nickname.charAt(0) : '?'}
+                </Text>
+              )}
             </View>
             <View style={styles.userDetails}>
               <Text style={styles.nickname}>{user?.nickname || t('profile.title')}</Text>

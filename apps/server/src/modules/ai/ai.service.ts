@@ -1,13 +1,15 @@
 // apps/server/src/modules/ai/ai.service.ts
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
-import { SearchService } from './search.service';
-import { ChatMessage } from './types';
+import { SearchService, SearchResult } from './search.service';
 
 const AI_BASE_URL = 'https://api.siliconflow.cn';
 const AI_MODEL_DEFAULT = 'deepseek-ai/DeepSeek-V3.2';
 const AI_MODEL_THINKING = 'deepseek-ai/DeepSeek-R1';
+const AI_MODEL_VISION = process.env.AI_VISION_MODEL || 'Qwen/Qwen2.5-VL-7B-Instruct';
 
 @Injectable()
 export class AiService {
@@ -44,51 +46,51 @@ export class AiService {
     });
     const history = historyRaw.reverse();
 
-    const messages: any[] = history.map((m) => {
-      // Use multimodal format for user messages with imageUrl
-      if (m.role === 'user' && m.imageUrl) {
+    const messages: any[] = await Promise.all(
+      history.map(async (m) => {
+        if (m.role === 'user' && m.imageUrl) {
+          const resolvedUrl = await this.resolveImageForModel(m.imageUrl);
+          return {
+            role: 'user',
+            content: [
+              { type: 'text', text: m.content },
+              { type: 'image_url', image_url: { url: resolvedUrl } },
+            ],
+          };
+        }
         return {
-          role: 'user',
-          content: [
-            { type: 'text', text: m.content },
-            { type: 'image_url', image_url: { url: m.imageUrl } },
-          ],
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
         };
-      }
-      return {
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      };
-    });
+      }),
+    );
 
     const dbContext = await this.buildDbContext(message);
-    const systemPrompt = this.buildSystemPrompt(dbContext);
 
-    // Call SiliconFlow (OpenAI-compatible) streaming API
-    const model = thinkingEnabled ? AI_MODEL_THINKING : AI_MODEL_DEFAULT;
+    let searchResults: SearchResult[] = [];
+    if (webSearch) {
+      try {
+        searchResults = await this.searchService.search(message, 5);
+      } catch (error) {
+        this.logger.warn('Web search failed', error);
+      }
+    }
+
+    const hasImage = history.some((m) => m.role === 'user' && m.imageUrl);
+    const systemPrompt = this.buildSystemPrompt(dbContext, searchResults, hasImage);
+
+    const model = hasImage
+      ? AI_MODEL_VISION
+      : thinkingEnabled
+        ? AI_MODEL_THINKING
+        : AI_MODEL_DEFAULT;
     const requestBody: any = {
       model,
-      max_tokens: thinkingEnabled ? 4096 : 1024,
-      temperature: thinkingEnabled ? 0.6 : undefined,
+      max_tokens: hasImage ? 1024 : thinkingEnabled ? 4096 : 1024,
+      temperature: thinkingEnabled && !hasImage ? 0.6 : undefined,
       stream: true,
       messages: [{ role: 'system', content: systemPrompt }, ...messages],
     };
-
-    // Add tool definitions when web search is enabled
-    if (webSearch) {
-      requestBody.tools = [{
-        type: 'function',
-        function: {
-          name: 'web_search',
-          description: 'Search the web for current information about restaurants, food trends, or any real-time information.',
-          parameters: {
-            type: 'object',
-            properties: { query: { type: 'string', description: 'The search query' } },
-            required: ['query'],
-          },
-        },
-      }];
-    }
 
     const response = await fetch(`${AI_BASE_URL}/v1/chat/completions`, {
       method: 'POST',
@@ -105,7 +107,37 @@ export class AiService {
       throw new Error(`AI 服务调用失败: ${response.status}`);
     }
 
-    return { stream: response, conversationId: conversation.id };
+    return { stream: response, conversationId: conversation.id, searchResults };
+  }
+
+  /** Local upload URLs are not reachable by SiliconFlow — convert to base64 data URLs. */
+  private async resolveImageForModel(imageUrl: string): Promise<string> {
+    if (imageUrl.startsWith('data:')) return imageUrl;
+
+    const uploadsMatch = imageUrl.match(/\/uploads\/([^/?#]+)$/);
+    if (uploadsMatch) {
+      const filepath = path.join(process.cwd(), 'uploads', uploadsMatch[1]);
+      if (fs.existsSync(filepath)) {
+        const buffer = fs.readFileSync(filepath);
+        const ext = path.extname(uploadsMatch[1]).toLowerCase();
+        const mime =
+          ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+        return `data:${mime};base64,${buffer.toString('base64')}`;
+      }
+    }
+
+    try {
+      const response = await fetch(imageUrl);
+      if (response.ok) {
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const contentType = response.headers.get('content-type') || 'image/jpeg';
+        return `data:${contentType};base64,${buffer.toString('base64')}`;
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to fetch image ${imageUrl}`, error);
+    }
+
+    return imageUrl;
   }
 
   private async buildDbContext(userMessage: string): Promise<string> {
@@ -195,7 +227,23 @@ export class AiService {
     return `\n以下是平台上的真实商家数据，请基于这些数据进行推荐：\n${lines.join('\n\n')}`;
   }
 
-  private buildSystemPrompt(dbContext: string): string {
+  private buildSystemPrompt(
+    dbContext: string,
+    searchResults: SearchResult[] = [],
+    hasImage = false,
+  ): string {
+    let webContext = '';
+    if (searchResults.length > 0) {
+      const lines = searchResults.map(
+        (r) => `- **${r.title}**: ${r.snippet}\n  来源: ${r.url}`,
+      );
+      webContext = `\n\n## 联网搜索参考\n${lines.join('\n')}\n\n请结合以上联网信息与平台商家数据回答，可引用来源链接。`;
+    }
+
+    const imageHint = hasImage
+      ? `\n## 图片理解\n用户发送了美食图片，请先描述图片中的菜品/场景，再结合平台数据推荐相似餐厅或搭配。`
+      : '';
+
     return `你是"美食达人AI"，一个专业的本地美食推荐助手。你的任务是帮助用户发现好吃的餐厅和美食。
 
 ## 你的能力
@@ -203,6 +251,7 @@ export class AiService {
 - 介绍餐厅的特色菜品、价格、评分、地址
 - 根据用户的位置推荐附近的商家
 - 回答关于美食和本地生活的问题
+- 识别用户上传的美食图片并给出推荐
 
 ## 推荐格式
 当你推荐餐厅时，请用以下结构化格式（每家餐厅用 🍽️ 开头）：
@@ -221,7 +270,7 @@ export class AiService {
 4. 如果数据库中没有匹配的商家，如实告知并给出一般性建议
 5. 回答用中文，语气热情友好，像朋友推荐一样自然
 6. 用 emoji 让回复更生动 🍜🍕🥩
-${dbContext}`;
+${imageHint}${dbContext}${webContext}`;
   }
 
   async getHistory(userId: number) {

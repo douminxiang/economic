@@ -12,7 +12,10 @@ import { JwtService } from '@nestjs/jwt';
 import { Logger, Inject, forwardRef } from '@nestjs/common';
 import { OrderService } from '../order/order.service';
 
-@WebSocketGateway({ cors: true })
+@WebSocketGateway({
+  cors: { origin: true, credentials: true },
+  transports: ['polling', 'websocket'],
+})
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
