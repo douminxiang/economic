@@ -4,7 +4,7 @@ import { AuthStack } from './AuthStack';
 import { MainTabs } from './MainTabs';
 import { useAuth } from '../hooks/useAuth';
 import { Loading } from '../components/Loading';
-import { disconnectSocket } from '../services/socket';
+import { disconnectSocket, connectSocket } from '../services/socket';
 import { trackPageView } from '../utils/tracker';
 import { getActiveRoute, navigationRef } from './navigationRef';
 
@@ -20,8 +20,11 @@ export const RootNavigator = () => {
   useEffect(() => {
     if (!isAuthenticated) {
       disconnectSocket();
+      return;
     }
-    // Socket connects lazily from Order/Map screens — avoids home-tab errors when server is down.
+    // 延迟连接，避免启动阶段与 Metro/首屏争抢资源
+    const timer = setTimeout(() => connectSocket(), 1500);
+    return () => clearTimeout(timer);
   }, [isAuthenticated]);
 
   useEffect(() => {

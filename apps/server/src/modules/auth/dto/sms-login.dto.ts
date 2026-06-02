@@ -1,6 +1,7 @@
 import { IsString, Matches, Length } from 'class-validator';
+import { DeviceInfoDto } from './device-info.dto';
 
-export class SmsLoginDto {
+export class SmsLoginDto extends DeviceInfoDto {
   @IsString()
   @Matches(/^\d{11}$/, { message: '手机号格式不正确' })
   phone: string;

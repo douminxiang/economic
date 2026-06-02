@@ -24,8 +24,28 @@ model User {
   favorites Favorite[]
   aiConversations AIConversation[]
   browseHistories BrowseHistory[]
+  authSessions    AuthSession[]
 
   @@map("users")
+}
+
+model AuthSession {
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  userId       Int
+  deviceId     String?   @db.VarChar(100)
+  deviceName   String?   @db.VarChar(100)
+  ip           String?   @db.VarChar(45)
+  refreshHash  String    @db.VarChar(64)
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  lastActiveAt DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
 }
 
 model Address {

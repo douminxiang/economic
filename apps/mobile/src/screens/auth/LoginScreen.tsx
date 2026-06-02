@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,14 @@ import {
   Platform,
   TouchableOpacity,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
 import { Input, Button } from '../../components';
 import { useAuth } from '../../hooks/useAuth';
-import { spacing, fontSize, colors } from '../../theme/tokens';
+import { spacing, fontSize, colors, borderRadius, shadows } from '../../theme/tokens';
 import { useTheme } from '../../theme/ThemeContext';
 
 const passwordSchema = z.object({
@@ -38,10 +39,19 @@ interface LoginScreenProps {
 export default function LoginScreen({ navigation }: LoginScreenProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { login, smsLogin, sendCode, isLoading } = useAuth();
   const [mode, setMode] = useState<'password' | 'sms'>('password');
   const [countdown, setCountdown] = useState(0);
+  const [mockCodeMessage, setMockCodeMessage] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mockCodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (mockCodeTimerRef.current) clearTimeout(mockCodeTimerRef.current);
+    };
+  }, []);
 
   const passwordForm = useForm<PasswordFormData>({
     resolver: zodResolver(passwordSchema),
@@ -74,9 +84,16 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       return;
     }
     try {
-      await sendCode(phone);
+      const result = await sendCode(phone);
       startCountdown();
-      Alert.alert(t('common.tip'), t('auth.codeSent'));
+      if (result?.mockMode && result?.code) {
+        smsForm.setValue('code', result.code);
+        setMockCodeMessage(result.code);
+        if (mockCodeTimerRef.current) clearTimeout(mockCodeTimerRef.current);
+        mockCodeTimerRef.current = setTimeout(() => setMockCodeMessage(null), 5000);
+      } else {
+        Alert.alert(t('common.tip'), t('auth.codeSent'));
+      }
     } catch (error: any) {
       Alert.alert(t('auth.sendFailed'), error?.message || t('auth.tryLater'));
     }
@@ -109,6 +126,19 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {mockCodeMessage !== null && (
+        <View
+          style={[styles.messageToast, { top: insets.top + spacing.sm }]}
+          pointerEvents="none"
+        >
+          <Text style={styles.messageToastText}>
+            验证码已发送：
+            <Text style={styles.messageToastCode}>{mockCodeMessage}</Text>
+            （开发模式，5秒后关闭）
+          </Text>
+        </View>
+      )}
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -271,4 +301,27 @@ const styles = StyleSheet.create({
   linkContainer: { marginTop: spacing.lg, alignItems: 'center' },
   linkText: { fontSize: fontSize.sm, color: colors.textSecondary },
   linkHighlight: { color: colors.primary, fontWeight: '600' },
+  messageToast: {
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 100,
+    backgroundColor: 'rgba(50, 50, 50, 0.95)',
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    ...shadows.md,
+  },
+  messageToastText: {
+    color: colors.white,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  messageToastCode: {
+    color: '#FFB74D',
+    fontSize: fontSize.lg,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
 });

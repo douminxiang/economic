@@ -1,6 +1,7 @@
 import { IsString, MinLength, MaxLength, IsOptional, Matches } from 'class-validator';
+import { DeviceInfoDto } from './device-info.dto';
 
-export class RegisterDto {
+export class RegisterDto extends DeviceInfoDto {
   @IsString()
   @MinLength(11, { message: '手机号至少11位' })
   @MaxLength(20)

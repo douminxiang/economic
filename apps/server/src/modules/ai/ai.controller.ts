@@ -108,11 +108,11 @@ export class AiController {
         res.write(`data: ${JSON.stringify({ error: err?.message || 'AI 服务暂时不可用' })}\n\n`);
         res.end();
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('AI chat 失败', error?.stack || error);
-      // Return plain JSON error, not wrapped by interceptor
+      const message = error?.message || 'AI 服务暂时不可用';
       if (!res.headersSent) {
-        res.status(500).json({ code: 500, message: 'AI 服务暂时不可用' });
+        res.status(500).json({ code: 500, message });
       }
     }
   }

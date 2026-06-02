@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   InternalServerErrorException,
+  ServiceUnavailableException,
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -45,12 +46,62 @@ export class UploadService {
   }
 
   async uploadImage(file: Express.Multer.File): Promise<{ url: string; mockMode: boolean }> {
+    return this.uploadImageInternal(file);
+  }
+
+  /** AI 多模态对话专用：必须写入 OSS，不允许本地 Mock */
+  async uploadAiImage(
+    file: Express.Multer.File,
+    userId: number,
+  ): Promise<{ url: string; objectKey: string; storage: 'oss' }> {
+    if (this.isMockMode) {
+      throw new ServiceUnavailableException(
+        'AI 多模态图片需要 OSS 存储，请在 .env 配置 OSS_REGION、OSS_BUCKET、OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET',
+      );
+    }
+
+    const validated = this.validateImageFile(file);
+    const objectKey = `ai/chat/${userId}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}${validated.ext}`;
+    const { url } = await this.uploadToOss(file, validated.filename, objectKey);
+    this.logger.log(`AI image stored in OSS: ${objectKey}`);
+    return { url, objectKey, storage: 'oss' };
+  }
+
+  isOssPublicUrl(url: string): boolean {
+    if (!url?.startsWith('https://')) return false;
+    if (this.ossPublicBaseUrl && url.startsWith(this.ossPublicBaseUrl.replace(/\/$/, ''))) {
+      return true;
+    }
+    if (this.ossBucket && url.includes(`${this.ossBucket}.`)) {
+      return true;
+    }
+    return /\.aliyuncs\.com\//i.test(url);
+  }
+
+  private uploadImageInternal(file: Express.Multer.File): Promise<{ url: string; mockMode: boolean }> {
+    const validated = this.validateImageFile(file);
+    const { filename } = validated;
+
+    if (this.isMockMode) {
+      return this.uploadToLocal(file, filename).then((result) => ({ ...result, mockMode: true }));
+    }
+
+    return this.uploadToOss(file, filename).then((result) => ({ ...result, mockMode: false }));
+  }
+
+  private validateImageFile(file: Express.Multer.File): { ext: string; filename: string } {
     if (!file) {
       throw new BadRequestException('请选择要上传的文件');
     }
 
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
+    const mime = file.mimetype?.toLowerCase() || '';
+    const ext = (path.extname(file.originalname) || '').toLowerCase();
+    const mimeOk =
+      allowedMimeTypes.includes(mime) ||
+      mime === 'application/octet-stream' ||
+      (!mime && ['.jpg', '.jpeg', '.png', '.webp'].includes(ext));
+    if (!mimeOk) {
       throw new BadRequestException('仅支持 JPG/PNG/WEBP 格式的图片');
     }
 
@@ -59,16 +110,9 @@ export class UploadService {
       throw new BadRequestException('图片大小不能超过 5MB');
     }
 
-    const ext = path.extname(file.originalname) || '.png';
-    const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`;
-
-    if (this.isMockMode) {
-      const result = await this.uploadToLocal(file, filename);
-      return { ...result, mockMode: true };
-    }
-
-    const result = await this.uploadToOss(file, filename);
-    return { ...result, mockMode: false };
+    const fileExt = ext || '.png';
+    const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}${fileExt}`;
+    return { ext: fileExt, filename };
   }
 
   private async uploadToLocal(
@@ -90,29 +134,86 @@ export class UploadService {
       accessKeyId: this.ossAccessKeyId,
       accessKeySecret: this.ossAccessKeySecret,
       bucket: this.ossBucket,
+      secure: true,
+      timeout: 60000,
       ...(this.ossEndpoint ? { endpoint: this.ossEndpoint } : {}),
     });
+  }
+
+  private resolveContentType(file: Express.Multer.File): string {
+    const mime = file.mimetype?.toLowerCase() || '';
+    if (mime && mime !== 'application/octet-stream') return mime;
+    const ext = (path.extname(file.originalname) || '').toLowerCase();
+    if (ext === '.png') return 'image/png';
+    if (ext === '.webp') return 'image/webp';
+    return 'image/jpeg';
+  }
+
+  private getFileBuffer(file: Express.Multer.File): Buffer {
+    if (file.buffer?.length) return file.buffer;
+    if (file.path && fs.existsSync(file.path)) return fs.readFileSync(file.path);
+    throw new BadRequestException('文件数据为空，请重新选择图片');
+  }
+
+  private isRetryableOssError(error: unknown): boolean {
+    const code = (error as { code?: string })?.code;
+    const message = String((error as Error)?.message || '');
+    if (code === 'RequestError' || code === 'ConnectionTimeoutError') return true;
+    return /ENOTFOUND|ETIMEDOUT|ECONNRESET|ECONNREFUSED|socket hang up/i.test(message);
+  }
+
+  private formatOssError(error: unknown): string {
+    const message = String((error as Error)?.message || '');
+    const code = (error as { code?: string })?.code;
+
+    if (/ENOTFOUND|ETIMEDOUT|ECONNRESET|ECONNREFUSED|socket hang up/i.test(message)) {
+      return '网络暂时无法连接阿里云 OSS，请检查网络后重试';
+    }
+    if (code === 'InvalidAccessKeyId' || /AccessKeyId/i.test(message)) {
+      return 'OSS AccessKey 无效，请检查 .env 中的 OSS_ACCESS_KEY_ID';
+    }
+    if (code === 'NoSuchBucket' || /NoSuchBucket/i.test(message)) {
+      return `OSS Bucket "${this.ossBucket}" 不存在或与区域不匹配`;
+    }
+    if (/AccessDenied|Forbidden/i.test(message)) {
+      return 'OSS 权限不足，请为 RAM 用户授予该 Bucket 的写入权限';
+    }
+    return '文件上传失败，请稍后重试';
   }
 
   private async uploadToOss(
     file: Express.Multer.File,
     filename: string,
+    objectKey = `uploads/${filename}`,
   ): Promise<{ url: string }> {
-    const objectKey = `uploads/${filename}`;
+    const buffer = this.getFileBuffer(file);
+    const maxAttempts = 3;
+    let lastError: unknown;
 
-    try {
-      const client = this.createOssClient();
-      const result = await client.put(objectKey, file.buffer, {
-        headers: { 'Content-Type': file.mimetype },
-      });
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const client = this.createOssClient();
+        const result = await client.put(objectKey, buffer, {
+          headers: { 'Content-Type': this.resolveContentType(file) },
+        });
 
-      const url = this.buildPublicUrl(objectKey, result.url);
-      this.logger.log(`OSS uploaded: ${objectKey}`);
-      return { url };
-    } catch (error) {
-      this.logger.error('OSS upload failed', error);
-      throw new InternalServerErrorException('文件上传失败，请检查 OSS 配置');
+        const url = this.buildPublicUrl(objectKey, result.url);
+        this.logger.log(`OSS uploaded: ${objectKey}`);
+        return { url };
+      } catch (error) {
+        lastError = error;
+        const retryable = this.isRetryableOssError(error);
+        this.logger.warn(
+          `OSS upload attempt ${attempt}/${maxAttempts} failed${retryable ? ' (retryable)' : ''}`,
+          error,
+        );
+        if (!retryable || attempt === maxAttempts) break;
+        await new Promise((r) => setTimeout(r, 400 * attempt));
+      }
     }
+
+    this.logger.error('OSS upload failed', lastError);
+    throw new InternalServerErrorException(this.formatOssError(lastError));
   }
 
   private buildPublicUrl(objectKey: string, fallbackUrl: string): string {

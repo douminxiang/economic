@@ -1,15 +1,16 @@
 // apps/server/src/modules/ai/ai.service.ts
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
 import { SearchService, SearchResult } from './search.service';
+import { UploadService } from '../upload/upload.service';
 
 const AI_BASE_URL = 'https://api.siliconflow.cn';
 const AI_MODEL_DEFAULT = 'deepseek-ai/DeepSeek-V3.2';
 const AI_MODEL_THINKING = 'deepseek-ai/DeepSeek-R1';
-const AI_MODEL_VISION = process.env.AI_VISION_MODEL || 'Qwen/Qwen2.5-VL-7B-Instruct';
+const AI_MODEL_VISION = process.env.AI_VISION_MODEL || 'Qwen/Qwen3-VL-8B-Instruct';
 
 @Injectable()
 export class AiService {
@@ -19,10 +20,15 @@ export class AiService {
     private prisma: PrismaService,
     private embeddingService: EmbeddingService,
     private searchService: SearchService,
+    private uploadService: UploadService,
   ) {}
 
   async chat(userId: number, message: string, conversationId?: number, thinkingEnabled?: boolean, imageUrl?: string, webSearch?: boolean) {
     this.logger.log(`AI chat: userId=${userId}, message=${message?.slice(0, 50)}, conversationId=${conversationId}, thinking=${thinkingEnabled}, imageUrl=${imageUrl}, webSearch=${webSearch}`);
+
+    if (imageUrl) {
+      this.assertOssImageUrl(imageUrl);
+    }
     const conversation = conversationId
       ? await this.prisma.aIConversation.findFirst({
           where: { id: conversationId, userId },
@@ -104,15 +110,32 @@ export class AiService {
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
       this.logger.error(`AI API error: ${response.status} ${errText}`);
-      throw new Error(`AI 服务调用失败: ${response.status}`);
+      let detail = errText;
+      try {
+        const parsed = JSON.parse(errText);
+        detail = parsed.message || parsed.error?.message || errText;
+      } catch {
+        // keep raw text
+      }
+      throw new Error(detail || `AI 服务调用失败 (${response.status})`);
     }
 
     return { stream: response, conversationId: conversation.id, searchResults };
   }
 
-  /** Local upload URLs are not reachable by SiliconFlow — convert to base64 data URLs. */
+  /** 多模态对话图片须为 OSS 公网 HTTPS 地址 */
+  private assertOssImageUrl(imageUrl: string) {
+    if (this.uploadService.isOssPublicUrl(imageUrl)) return;
+    throw new BadRequestException('多模态对话图片须上传至 OSS，请重新选择图片');
+  }
+
+  /** OSS 公网 URL 可直接传给视觉模型；本地 Mock 文件转为 base64 */
   private async resolveImageForModel(imageUrl: string): Promise<string> {
     if (imageUrl.startsWith('data:')) return imageUrl;
+
+    if (this.uploadService.isOssPublicUrl(imageUrl)) {
+      return imageUrl;
+    }
 
     const uploadsMatch = imageUrl.match(/\/uploads\/([^/?#]+)$/);
     if (uploadsMatch) {

@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MapView, Marker, Polyline } from 'react-native-amap3d';
-import { Geolocation } from 'react-native-amap-geolocation';
 import { useDirection } from '../hooks/useAmap';
-import { initAmapGeolocation } from '../utils/amapInit';
+import { getAmapCurrentPosition, initAmapGeolocation } from '../utils/amapInit';
 import { fontSize, spacing, borderRadius, colors } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -27,9 +26,9 @@ export default function RouteScreen({ route, navigation }: any) {
     let mounted = true;
     async function initLocation() {
       try {
-        await initAmapGeolocation();
-        if (!mounted) return;
-        Geolocation.getCurrentPosition(
+        const ready = await initAmapGeolocation();
+        if (!mounted || !ready) return;
+        await getAmapCurrentPosition(
           (position) => {
             if (mounted) setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
           },

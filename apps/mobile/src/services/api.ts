@@ -14,8 +14,9 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  if (config.data && typeof (config.data as FormData).append === 'function') {
+  if (config.data instanceof FormData) {
     delete config.headers['Content-Type'];
+    delete config.headers['content-type'];
   }
   return config;
 });
@@ -31,8 +32,12 @@ api.interceptors.response.use(
       if (refreshToken) {
         try {
           const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
-          getStorage().set('accessToken', data.data.accessToken);
-          originalRequest.headers.Authorization = `Bearer ${data.data.accessToken}`;
+          const tokens = data.data;
+          getStorage().set('accessToken', tokens.accessToken);
+          if (tokens.refreshToken) {
+            getStorage().set('refreshToken', tokens.refreshToken);
+          }
+          originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;
           return api(originalRequest);
         } catch {
           getStorage().remove('accessToken');
@@ -147,25 +152,112 @@ export const browseHistoryApi = {
   clear: () => api.delete('/browse-history'),
 };
 
-// ============ 认证（短信） ============
+// ============ 认证（短信 / SSO） ============
 export const authApi = {
   sendCode: (phone: string) => api.post('/auth/send-code', { phone }),
-  smsLogin: (phone: string, code: string) => api.post('/auth/sms-login', { phone, code }),
+  smsLogin: (phone: string, code: string, device?: { deviceId?: string; deviceName?: string }) =>
+    api.post('/auth/sms-login', { phone, code, ...device }),
+  logout: (refreshToken?: string) => api.post('/auth/logout', refreshToken ? { refreshToken } : {}),
+  sessions: () => api.get('/auth/sessions'),
+  logoutOthers: () => api.delete('/auth/sessions/others'),
 };
 
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getStorage().getString('refreshToken');
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const accessToken = json?.data?.accessToken;
+    if (!accessToken) return null;
+    getStorage().set('accessToken', accessToken);
+    if (json?.data?.refreshToken) {
+      getStorage().set('refreshToken', json.data.refreshToken);
+    }
+    return accessToken;
+  } catch {
+    return null;
+  }
+}
+
 // ============ 文件上传 ============
-export const uploadApi = {
-  uploadImage: (file: { uri: string; type: string; name: string }) => {
+async function uploadFileWithFetch(
+  endpoint: string,
+  file: { uri: string; type: string; name: string },
+) {
+  const buildFormData = () => {
     const formData = new FormData();
     formData.append('file', {
       uri: file.uri,
       type: file.type || 'image/jpeg',
       name: file.name || `photo_${Date.now()}.jpg`,
     } as any);
-    return api.post('/upload/image', formData, {
-      timeout: 60000,
-    });
-  },
+    return formData;
+  };
+
+  const doUpload = async (token?: string | null) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60000);
+    try {
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers,
+        body: buildFormData(),
+        signal: controller.signal,
+      });
+      return res;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  let token = getStorage().getString('accessToken');
+  let response: Response;
+  try {
+    response = await doUpload(token);
+    if (response.status === 401) {
+      token = await refreshAccessToken();
+      if (token) {
+        response = await doUpload(token);
+      }
+    }
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      throw { message: '上传超时，请检查网络' };
+    }
+    throw { message: '无法连接服务器，请确认后端已启动' };
+  }
+
+  if (!response.ok) {
+    let message = '图片上传失败，请重试';
+    try {
+      const errJson = await response.json();
+      message = errJson.message || message;
+    } catch {
+      // ignore non-json body
+    }
+    throw { message };
+  }
+
+  return response.json();
+}
+
+export const uploadApi = {
+  /** Android 上 axios + FormData 易触发 Network Error，改用 fetch 上传 */
+  uploadImage: (file: { uri: string; type: string; name: string }) =>
+    uploadFileWithFetch('/upload/image', file),
+
+  /** AI 多模态对话 — 图片强制存储到 OSS */
+  uploadAiImage: (file: { uri: string; type: string; name: string }) =>
+    uploadFileWithFetch('/upload/image/ai', file),
 };
 
 // ============ 分析追踪 ============

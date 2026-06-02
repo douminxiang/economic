@@ -7,7 +7,12 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+
+const IMAGE_UPLOAD_OPTIONS = {
+  limits: { fileSize: 5 * 1024 * 1024 },
+};
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UploadService } from './upload.service';
 
 @Controller('upload')
@@ -24,8 +29,18 @@ export class UploadController {
   }
 
   @Post('image')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', IMAGE_UPLOAD_OPTIONS))
   uploadImage(@UploadedFile() file: Express.Multer.File) {
     return this.uploadService.uploadImage(file);
+  }
+
+  /** AI 多模态对话图片 — 强制 OSS 存储 */
+  @Post('image/ai')
+  @UseInterceptors(FileInterceptor('file', IMAGE_UPLOAD_OPTIONS))
+  uploadAiImage(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser('id') userId: number,
+  ) {
+    return this.uploadService.uploadAiImage(file, userId);
   }
 }

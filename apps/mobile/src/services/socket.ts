@@ -1,9 +1,28 @@
 import { io, Socket } from 'socket.io-client';
 import { getStorage } from '../utils/storage';
 import { API_ORIGIN } from '../config/api';
+let lastConnectErrorLog = 0;
+let sessionRevokedHandler: ((reason: string) => void) | null = null;
+
+export const setupSessionRevokedListener = (handler: (reason: string) => void) => {
+  sessionRevokedHandler = handler;
+  if (socket) {
+    attachSessionRevokedListener(socket);
+  }
+};
+
+function attachSessionRevokedListener(instance: Socket) {
+  instance.off('auth:sessionRevoked');
+  instance.on('auth:sessionRevoked', (payload: { reason?: string; exceptSessionId?: string }) => {
+    const currentSessionId = getStorage().getString('sessionId');
+    if (payload?.exceptSessionId && payload.exceptSessionId === currentSessionId) {
+      return;
+    }
+    sessionRevokedHandler?.(payload?.reason || 'session_revoked');
+  });
+}
 
 let socket: Socket | null = null;
-let lastConnectErrorLog = 0;
 
 export const getSocket = (): Socket | null => socket;
 
@@ -13,6 +32,8 @@ function attachSocketListeners(instance: Socket) {
   instance.off('connect');
   instance.off('disconnect');
   instance.off('connect_error');
+
+  attachSessionRevokedListener(instance);
 
   instance.on('connect', () => {
     if (__DEV__) console.log('[Socket] Connected:', instance.id);

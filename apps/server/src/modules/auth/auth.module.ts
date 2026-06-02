@@ -6,10 +6,12 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { SmsModule } from '../sms/sms.module';
+import { AuthSessionModule } from './auth-session.module';
 
 @Module({
   imports: [
     SmsModule,
+    AuthSessionModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -21,6 +23,6 @@ import { SmsModule } from '../sms/sms.module';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  exports: [AuthService, AuthSessionModule],
 })
 export class AuthModule {}

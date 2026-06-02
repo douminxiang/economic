@@ -159,7 +159,7 @@ export const ChatInput: React.FC<Props> = ({ onSend, disabled }) => {
         const progressTimer = setInterval(() => {
           setUploadPercent((p) => (p >= 90 ? 90 : p + 15));
         }, 200);
-        const uploadResult = await uploadApi.uploadImage({
+        const uploadResult = await uploadApi.uploadAiImage({
           uri: imageUri,
           type: imageMime,
           name: imageName,

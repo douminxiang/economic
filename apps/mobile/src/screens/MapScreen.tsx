@@ -2,13 +2,12 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Dimensions, PermissionsAndroid, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MapView, Marker } from 'react-native-amap3d';
-import { Geolocation } from 'react-native-amap-geolocation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNearbyShops } from '../hooks/useShops';
 import { useOrderList } from '../hooks/useOrders';
 import { useSocketEvent } from '../hooks/useSocket';
 import { connectSocket, getSocket } from '../services/socket';
-import { initAmapGeolocation } from '../utils/amapInit';
+import { getAmapCurrentPosition, initAmapGeolocation } from '../utils/amapInit';
 import { fontSize, spacing, borderRadius } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -68,8 +67,8 @@ export default function MapScreen({ navigation, route }: any) {
 
     async function initLocation() {
       try {
-        await initAmapGeolocation();
-        if (!mounted) return;
+        const ready = await initAmapGeolocation();
+        if (!mounted || !ready) return;
 
         const hasPermission = await requestLocationPermission(
           t('map.locationPermission'), t('map.locationMessage'), t('map.allow')
@@ -77,7 +76,7 @@ export default function MapScreen({ navigation, route }: any) {
         if (!mounted) return;
 
         if (hasPermission) {
-          Geolocation.getCurrentPosition(
+          await getAmapCurrentPosition(
             (position) => {
               if (mounted && !selectedShopFromSearch) {
                 setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
@@ -261,7 +260,7 @@ export default function MapScreen({ navigation, route }: any) {
           key={`${location.latitude}-${location.longitude}`}
           style={styles.map}
           initialCameraPosition={{ target: location, zoom: selectedShopFromSearch ? 16 : 14 }}
-          myLocationButtonEnabled
+          myLocationButtonEnabled={false}
         >
           {shops.map((shop: any) => (
             <Marker

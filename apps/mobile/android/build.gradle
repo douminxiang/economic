@@ -1,5 +1,6 @@
 buildscript {
     ext {
+        REACT_NATIVE_NODE_MODULES_DIR = file("../../../node_modules/react-native").absolutePath
         buildToolsVersion = "36.0.0"
         minSdkVersion = 24
         compileSdkVersion = 36

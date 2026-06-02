@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentService } from '../payment/payment.service';
 import { EventsGateway } from '../events/events.gateway';
@@ -21,6 +21,7 @@ export class OrderService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private paymentService: PaymentService,
+    @Inject(forwardRef(() => EventsGateway))
     private eventsGateway: EventsGateway,
   ) {}
 

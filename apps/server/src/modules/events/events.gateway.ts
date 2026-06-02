@@ -11,6 +11,7 @@ import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { Logger, Inject, forwardRef } from '@nestjs/common';
 import { OrderService } from '../order/order.service';
+import { AuthSessionService } from '../auth/auth-session.service';
 
 @WebSocketGateway({
   cors: { origin: true, credentials: true },
@@ -25,20 +26,27 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(
     private jwtService: JwtService,
+    private authSessionService: AuthSessionService,
     @Inject(forwardRef(() => OrderService))
     private orderService: OrderService,
   ) {}
 
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
     try {
       const token = client.handshake.auth?.token || client.handshake.query?.token;
       if (!token) {
         client.disconnect();
         return;
       }
-      const payload = this.jwtService.verify(token as string);
+      const payload = this.jwtService.verify(token as string) as { sub: number; sid?: string };
+      if (!payload.sid) {
+        client.disconnect();
+        return;
+      }
+      await this.authSessionService.assertSessionActive(payload.sid);
       const userId = payload.sub;
       client.data.userId = userId;
+      client.data.sessionId = payload.sid;
 
       if (!this.userSockets.has(userId)) {
         this.userSockets.set(userId, new Set());
@@ -97,5 +105,12 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     payload: { latitude: number; longitude: number; estimatedMinutes: number },
   ) {
     this.server.to(`order:${orderId}`).emit('order:riderLocation', { orderId, ...payload });
+  }
+
+  emitSessionRevoked(
+    userId: number,
+    payload: { reason: string; exceptSessionId?: string },
+  ) {
+    this.server.to(`user:${userId}`).emit('auth:sessionRevoked', payload);
   }
 }
