@@ -10,7 +10,7 @@ import { Platform } from 'react-native';
 export type DevConnectMode = 'emulator' | 'usb' | 'lan';
 
 /** 真机测试时改为 'usb' 或 'lan' */
-export const DEV_CONNECT_MODE: DevConnectMode = 'emulator';
+export const DEV_CONNECT_MODE: DevConnectMode = 'usb';
 
 /** 电脑 WLAN IP（ipconfig 查看），仅 lan 模式使用 */
 export const DEV_LAN_HOST = '10.33.103.251';
