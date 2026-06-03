@@ -19,10 +19,9 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Enable Corepack & install pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@latest --activate
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Install dependencies (pnpm)
         run: pnpm install --frozen-lockfile
@@ -42,10 +41,9 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Enable Corepack & install pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@latest --activate
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Install dependencies (pnpm)
         run: pnpm install --frozen-lockfile
@@ -66,10 +64,9 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Enable Corepack & install pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@latest --activate
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Install dependencies (pnpm)
         run: pnpm install --frozen-lockfile
@@ -99,10 +96,9 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Enable Corepack & install pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@latest --activate
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Install dependencies (pnpm)
         run: pnpm install --frozen-lockfile
