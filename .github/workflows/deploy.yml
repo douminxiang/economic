@@ -82,15 +82,20 @@ jobs:
         env:
           IMAGE: ${{ env.IMAGE_NAME }}:latest
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: IMAGE,DB_PASSWORD
+          envs: IMAGE,DB_PASSWORD,DOCKER_USERNAME,DOCKER_PASSWORD
           script: |
             set -e
             mkdir -p /opt/economic
             cd /opt/economic
+
+            echo "===== Login to Docker Hub ====="
+            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
             echo "===== Pull image ====="
             docker pull "$IMAGE"
