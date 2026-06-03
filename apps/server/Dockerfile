@@ -33,7 +33,7 @@ RUN pnpm install --frozen-lockfile --prod
 RUN npm install -g prisma@7.8.0
 
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
-COPY --from=builder /app/apps/server/node_modules/.prisma ./apps/server/node_modules/.prisma
+COPY --from=builder /app/node_modules/.prisma ./apps/server/node_modules/.prisma
 COPY --from=builder /app/apps/server/prisma ./apps/server/prisma
 COPY apps/server/docker-entrypoint.sh ./apps/server/docker-entrypoint.sh
 
