@@ -14,5 +14,13 @@
   },
   "dependencies": {
     "@nestjs/mapped-types": "^2.1.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "bcrypt",
+      "prisma",
+      "@prisma/client",
+      "@prisma/engines"
+    ]
   }
 }
