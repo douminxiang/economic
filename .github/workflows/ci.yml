@@ -118,7 +118,9 @@ jobs:
 
       - name: Build AAB
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: cd apps/mobile/android && ./gradlew assembleRelease
+        run: |
+          chmod +x apps/mobile/android/gradlew
+          cd apps/mobile/android && ./gradlew assembleRelease
 
       - name: Upload AAB artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

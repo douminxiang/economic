@@ -7,7 +7,6 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/server/package.json ./apps/server/
 COPY packages/shared/package.json ./packages/shared/
 
-# Install pnpm and dependencies
 RUN npm install -g pnpm@9 && pnpm install --frozen-lockfile
 
 COPY apps/server ./apps/server
@@ -21,22 +20,22 @@ FROM node:22-alpine AS production
 
 RUN apk add --no-cache wget
 
-RUN npm install -g pnpm@9
-
 WORKDIR /app
 
+# 复制所有源码和配置
+COPY .npmrc ./
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/server/package.json ./apps/server/
 COPY packages/shared/package.json ./packages/shared/
-
-RUN npm install -g prisma@7.8.0 && pnpm install --frozen-lockfile --prod
-
-COPY --from=builder /app/apps/server/dist ./apps/server/dist
-COPY --from=builder /app/apps/server/prisma ./apps/server/prisma
-COPY --from=builder /app/apps/server/prisma.config.ts ./apps/server/prisma.config.ts
+COPY apps/server/prisma ./apps/server/prisma
+COPY apps/server/prisma.config.ts ./apps/server/prisma.config.ts
 COPY apps/server/docker-entrypoint.sh ./apps/server/docker-entrypoint.sh
 
-RUN cd /app/apps/server && DATABASE_URL="mysql://root:dummy@localhost:3306/economic" npx prisma generate
+# 安装依赖（先装 prisma CLI，@prisma/client postinstall 需要）
+RUN npm install -g pnpm@9 prisma@7.8.0 && pnpm install --frozen-lockfile --prod
+
+# 复制构建产物
+COPY --from=builder /app/apps/server/dist ./apps/server/dist
 
 WORKDIR /app/apps/server
 RUN chmod +x docker-entrypoint.sh
