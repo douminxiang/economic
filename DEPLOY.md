@@ -116,28 +116,25 @@ SSH 登录服务器后执行：
 mkdir -p /opt/economic
 cd /opt/economic
 
-# ② 创建生产环境变量文件
+# ② 创建生产环境变量（从仓库 apps/server/.env.production.example 复制）
 nano .env.production
-# （将 .env.production.example 的内容复制进来，填写真实值）
 
-# ③ 创建 Docker 网络（只需执行一次）
-docker network create economic_default || true
+# ③ 复制生产 compose 文件到服务器
+# 本地执行（把文件传到服务器）：
+scp apps/server/docker-compose.prod.yml user@your-server:/opt/economic/
+scp apps/server/.env.production.example user@your-server:/opt/economic/.env.production
 
-# ④ 启动数据库服务（仅首次）
-# 先创建 docker-compose.db.yml 或直接用完整 docker-compose.yml
-docker compose -f apps/server/docker-compose.yml up -d db
+# ④ 首次启动数据库
+export DB_PASSWORD='你的数据库密码'
+export IMAGE='your-docker-user/economic-server:latest'
+docker compose -f docker-compose.prod.yml up -d db
 
-# 等待数据库健康（约 15 秒）
-docker compose -f apps/server/docker-compose.yml ps
+# 等待 healthy 后启动后端（entrypoint 会自动 prisma migrate deploy）
+docker compose -f docker-compose.prod.yml up -d server
 
-# ⑤ 执行数据库迁移（首次）
-# 在本地执行：pnpm db:migrate
-# 或进入容器执行：
-docker run --rm \
-  --network economic_default \
-  -e DATABASE_URL="mysql://root:密码@db:3306/economic" \
-  $(docker images -q economic-server:latest) \
-  npx prisma migrate deploy
+# ⑤ 验证
+curl http://127.0.0.1:3000/health
+# 期望：{"status":"ok","timestamp":"..."}
 ```
 
 ---
@@ -268,13 +265,11 @@ pnpm db:seed      # 填充种子数据
 
 ### 生产环境（自动 / 手动）
 
-```bash
-# 方式 1：通过 GitHub Actions 在部署后自动执行
-# 在 deploy.yml 的 SSH script 末尾加上：
-docker exec economic-server npx prisma migrate deploy
+容器启动时 `docker-entrypoint.sh` 会自动执行 `prisma migrate deploy`。
 
-# 方式 2：手动在服务器执行
-docker exec -it economic-server npx prisma migrate deploy
+```bash
+# 手动补跑迁移
+docker exec economic-server prisma migrate deploy --schema=./prisma/schema.prisma
 ```
 
 > ⚠️ **警告**：生产环境禁止使用 `prisma migrate dev`，只能用 `prisma migrate deploy`
@@ -303,9 +298,12 @@ economic/
 │       └── deploy.yml      # 新增：Docker 构建推送 + SSH 部署
 ├── apps/
 │   ├── server/
-│   │   ├── Dockerfile                  # 新增：多阶段构建
-│   │   ├── docker-compose.yml         # 新增：本地/服务器编排
-│   │   └── .env.production.example    # 新增：生产环境变量模板
+│   ├── server/
+│   │   ├── Dockerfile                  # 多阶段构建
+│   │   ├── docker-compose.yml         # 本地/服务器全量编排
+│   │   ├── docker-compose.prod.yml    # 服务器拉镜像部署
+│   │   ├── docker-entrypoint.sh       # 启动前自动 migrate
+│   │   └── .env.production.example    # 生产环境变量模板
 │   └── mobile/                        # 已有：React Native 移动端
 ├── nginx/
 │   ├── nginx.conf       # 新增：Nginx 反向代理配置
@@ -316,11 +314,22 @@ economic/
 
 ---
 
-## 十一、下一步建议
+## 十一、移动端生产 API 配置
 
-1. **添加健康检查端点**：在 `apps/server/src` 中添加 `GET /health` 路由
-2. **配置 Sentry**：填写 `SENTRY_DSN` 实现生产错误监控
-3. **配置 OSS**：填写阿里云 OSS 相关变量，实现文件云端存储
-4. **配置支付宝**：填写支付宝相关信息，实现真实支付
-5. **添加自动化测试**：完善 `apps/server/test` 目录，提高 CI 质量
-6. **多环境部署**：增加 `staging` 分支，实现预发布环境自动部署
+打包发布 App 前，将 API 地址改为生产域名（不要用 `127.0.0.1`）：
+
+```typescript
+// apps/mobile/src/config/api.ts — 生产环境示例
+export const API_BASE_URL = 'https://api.your-domain.com/api/v1';
+```
+
+---
+
+## 十二、下一步建议
+
+1. ~~**添加健康检查端点**~~：已实现 `GET /health`
+2. **配置 Sentry**：填写 `SENTRY_DSN`
+3. **配置 OSS / 支付宝 / 短信**：见 `.env.production.example`
+4. **完善单元测试**：提高 CI 覆盖率
+5. **staging 环境**：复制 `deploy.yml` 为 `deploy-staging.yml`
+6. **Nginx HTTPS**：`docker compose --profile with-nginx up -d`

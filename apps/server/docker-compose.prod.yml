@@ -1,0 +1,57 @@
+version: "3.8"
+
+# 服务器上使用（已构建镜像，不本地 build）：
+#   export IMAGE=your-docker-user/economic-server:latest
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+
+services:
+  server:
+    image: ${IMAGE:-your-docker-user/economic-server:latest}
+    container_name: economic-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - /opt/economic/.env.production
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: mysql://root:${DB_PASSWORD}@db:3306/economic?connection_limit=50
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - economic-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  db:
+    image: mariadb:11.4
+    container_name: economic-db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
+      MARIADB_DATABASE: economic
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - economic-net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+networks:
+  economic-net:
+    name: economic_default
+    driver: bridge
+
+volumes:
+  db-data:
+    driver: local
