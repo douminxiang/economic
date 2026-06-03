@@ -1,15 +1,14 @@
 # ===== 构建阶段 =====
 FROM node:22-alpine AS builder
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
 WORKDIR /app
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/server/package.json ./apps/server/
 COPY packages/shared/package.json ./packages/shared/
 
-RUN pnpm install --frozen-lockfile
+# Install pnpm and dependencies
+RUN npm install -g pnpm@9 && pnpm install --frozen-lockfile
 
 COPY apps/server ./apps/server
 COPY packages/shared ./packages/shared
@@ -21,7 +20,8 @@ RUN pnpm run build:server
 FROM node:22-alpine AS production
 
 RUN apk add --no-cache wget
-RUN corepack enable && corepack prepare pnpm@latest --activate
+
+RUN npm install -g pnpm@9
 
 WORKDIR /app
 
