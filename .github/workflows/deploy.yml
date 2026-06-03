@@ -83,18 +83,19 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Pull and save image
+      - name: Pull and save images
         run: |
           docker pull ${{ env.IMAGE_NAME }}:latest
-          docker save ${{ env.IMAGE_NAME }}:latest -o /tmp/economic-server.tar
+          docker pull mariadb:11.4
+          docker save ${{ env.IMAGE_NAME }}:latest mariadb:11.4 -o /tmp/images.tar
 
-      - name: Copy image to server
+      - name: Copy images to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: /tmp/economic-server.tar
+          source: /tmp/images.tar
           target: /opt/economic/
 
       - name: Deploy via SSH
@@ -111,9 +112,9 @@ jobs:
             set -e
             cd /opt/economic
 
-            echo "===== Load image ====="
-            docker load -i economic-server.tar
-            rm -f economic-server.tar
+            echo "===== Load images ====="
+            docker load -i images.tar
+            rm -f images.tar
 
             echo "===== Deploy stack ====="
             export IMAGE DB_PASSWORD
