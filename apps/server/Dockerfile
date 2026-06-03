@@ -29,13 +29,14 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/server/package.json ./apps/server/
 COPY packages/shared/package.json ./packages/shared/
 
-RUN pnpm install --frozen-lockfile --prod
-RUN npm install -g prisma@7.8.0
+RUN npm install -g prisma@7.8.0 && pnpm install --frozen-lockfile --prod
 
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
-COPY --from=builder /app/node_modules/.prisma ./apps/server/node_modules/.prisma
 COPY --from=builder /app/apps/server/prisma ./apps/server/prisma
+COPY --from=builder /app/apps/server/prisma.config.ts ./apps/server/prisma.config.ts
 COPY apps/server/docker-entrypoint.sh ./apps/server/docker-entrypoint.sh
+
+RUN cd /app/apps/server && DATABASE_URL="mysql://root:dummy@localhost:3306/economic" npx prisma generate
 
 WORKDIR /app/apps/server
 RUN chmod +x docker-entrypoint.sh
