@@ -55,6 +55,8 @@ jobs:
     name: Build Server
     runs-on: ubuntu-latest
     needs: [lint, test]
+    env:
+      DATABASE_URL: mysql://root:dummy@localhost:3306/economic
     steps:
       - uses: actions/checkout@v4
 

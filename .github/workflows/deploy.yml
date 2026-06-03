@@ -12,6 +12,8 @@ jobs:
   ci:
     name: CI Check
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: mysql://root:dummy@localhost:3306/economic
     steps:
       - uses: actions/checkout@v4
 
