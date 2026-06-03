@@ -13,7 +13,7 @@ RUN npm install -g pnpm@9 && pnpm install --frozen-lockfile
 COPY apps/server ./apps/server
 COPY packages/shared ./packages/shared
 
-RUN cd apps/server && pnpm exec prisma generate
+RUN DATABASE_URL="mysql://root:dummy@localhost:3306/economic" pnpm --filter @economic/server exec prisma generate
 RUN pnpm run build:server
 
 # ===== 生产阶段 =====
