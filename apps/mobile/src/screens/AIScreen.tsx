@@ -1,14 +1,17 @@
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, Animated, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Animated, TouchableOpacity, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useStore } from 'zustand';
 import { ChatBubble } from '../components/ai/ChatBubble';
 import { QuickQuestions } from '../components/ai/QuickQuestions';
 import { ChatInput } from '../components/ai/ChatInput';
 import { useAIStore } from '../stores/aiStore';
-import { createChatStream, shopApi } from '../services/api';
+import { createChatStream, shopApi, abortActiveChatStream } from '../services/api';
 import { spacing, fontSize, borderRadius } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
+import { shopSearchKeywords } from '../utils/aiRestaurant';
+import { navigateToShopDetail } from '../utils/navigateToShop';
 
 export default function AIScreen({ navigation }: any) {
   const { colors } = useTheme();
@@ -122,8 +125,17 @@ export default function AIScreen({ navigation }: any) {
 
   useEffect(() => {
     Animated.timing(headerOpacity, { toValue: 1, duration: 600, useNativeDriver: true }).start();
-    clearMessages();
   }, []);
+
+  // 跳转店铺详情时中断 SSE，避免返回后出现误报「网络连接失败」
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        abortActiveChatStream();
+        setStreaming(false);
+      };
+    }, [setStreaming]),
+  );
 
   useEffect(() => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
@@ -167,24 +179,37 @@ export default function AIScreen({ navigation }: any) {
   );
 
   const handleRestaurantPress = useCallback(
-    async (name: string) => {
+    async (name: string, shopId?: number) => {
       try {
-        const cleanName = name.replace(/[^一-龥a-zA-Z0-9\s]/g, '').replace(/\s+/g, '').trim();
-        if (!cleanName) return;
-
-        const res = await shopApi.list({ keyword: cleanName, page: 1, limit: 5 });
-        const shops = res.data?.items || [];
-        const shop = shops.find((s: any) => s.name.includes(cleanName) || cleanName.includes(s.name));
-        if (shop) {
-          navigation.navigate('Home' as never, { screen: 'ShopDetail', params: { id: shop.id } } as never);
-        } else if (shops.length > 0) {
-          navigation.navigate('Home' as never, { screen: 'ShopDetail', params: { id: shops[0].id } } as never);
+        if (shopId) {
+          navigateToShopDetail(shopId, navigation);
+          return;
         }
-      } catch (e) {
+
+        const keywords = shopSearchKeywords(name);
+        let matched: { id: number; name: string } | undefined;
+
+        for (const keyword of keywords) {
+          const res = await shopApi.list({ keyword, page: 1, limit: 10 });
+          const shops: Array<{ id: number; name: string }> = res.data?.items || [];
+          matched =
+            shops.find((s) => s.name === name) ||
+            shops.find((s) => s.name.includes(keyword) || keyword.includes(s.name)) ||
+            shops[0];
+          if (matched) break;
+        }
+
+        if (matched) {
+          navigateToShopDetail(matched.id, navigation);
+        } else {
+          Alert.alert(t('common.error'), t('ai.shopNotFound', { name }));
+        }
+      } catch (e: any) {
         console.log('[AI] Restaurant press error:', e);
+        Alert.alert(t('common.error'), e?.message || t('ai.shopNavigateFailed'));
       }
     },
-    [navigation],
+    [navigation, t],
   );
 
   return (
@@ -220,7 +245,12 @@ export default function AIScreen({ navigation }: any) {
         </View>
       </View>
 
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.listContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="always"
+        nestedScrollEnabled
+      >
         {messages.length === 0 ? (
           <Animated.View style={[styles.welcomeContainer, { opacity: headerOpacity }]}>
             <View style={styles.avatarCircle}>

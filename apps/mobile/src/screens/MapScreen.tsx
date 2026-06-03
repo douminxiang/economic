@@ -142,7 +142,7 @@ export default function MapScreen({ navigation, route }: any) {
         container: { flex: 1, backgroundColor: colors.background },
         searchBar: {
           position: 'absolute',
-          top: 50,
+          top: spacing.md,
           left: 16,
           right: 16,
           zIndex: 10,

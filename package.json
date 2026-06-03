@@ -6,6 +6,8 @@
     "dev:mobile": "pnpm --filter @economic/mobile android",
     "dev:real-device": "powershell -ExecutionPolicy Bypass -File scripts/dev-real-device.ps1",
     "dev:usb": "powershell -ExecutionPolicy Bypass -File scripts/dev-usb.ps1",
+    "dev:all": "powershell -ExecutionPolicy Bypass -File scripts/dev-all.ps1",
+    "dev:all:restart": "powershell -ExecutionPolicy Bypass -File scripts/dev-all.ps1 -Restart",
     "build:server": "pnpm --filter @economic/server build",
     "db:migrate": "pnpm --filter @economic/server prisma:migrate",
     "db:seed": "pnpm --filter @economic/server prisma:seed"

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { fontSize, spacing, borderRadius, shadows } from '../../theme/tokens';
 import { useTheme } from '../../theme/ThemeContext';
 import { SearchResultCard } from './SearchResultCard';
+import { parseRestaurants, type ParsedRestaurant } from '../../utils/aiRestaurant';
 
 interface SearchResult {
   title: string;
@@ -17,28 +18,21 @@ interface Props {
   thinkingContent?: string;
   imageUrl?: string;
   searchResults?: SearchResult[];
-  onRestaurantPress?: (name: string) => void;
-}
-
-function parseRestaurants(text: string): { intro: string; restaurants: string[] } {
-  const parts = text.split(/(?=🍽️)/);
-  const intro = parts[0]?.trim() || '';
-  const restaurants = parts.slice(1).map((r) => r.trim()).filter(Boolean);
-  return { intro, restaurants };
+  onRestaurantPress?: (name: string, shopId?: number) => void;
 }
 
 function RestaurantCard({
-  text,
+  restaurant,
   onPress,
   styles,
 }: {
-  text: string;
-  onPress?: (name: string) => void;
+  restaurant: ParsedRestaurant;
+  onPress?: (name: string, shopId?: number) => void;
   styles: ReturnType<typeof createStyles>;
 }) {
   const { t } = useTranslation();
-  const lines = text.split('\n').filter((l) => l.trim());
-  const name = lines[0]?.replace(/🍽️?\s*\**/g, '').replace(/\**/g, '').trim() || '';
+  const lines = restaurant.raw.split('\n').filter((l) => l.trim());
+  const name = restaurant.name;
 
   const getField = (emoji: string) => {
     const line = lines.find((l) => l.includes(emoji));
@@ -46,7 +40,11 @@ function RestaurantCard({
   };
 
   return (
-    <TouchableOpacity style={styles.restaurantCard} activeOpacity={0.7} onPress={() => onPress?.(name)}>
+    <TouchableOpacity
+      style={styles.restaurantCard}
+      activeOpacity={0.7}
+      onPress={() => onPress?.(name, restaurant.shopId)}
+    >
       <Text style={styles.restName}>🍽️ {name}</Text>
       {getField('📍') ? <Text style={styles.restLine}>📍 {getField('📍')}</Text> : null}
       {getField('💰') ? <Text style={styles.restLine}>💰 {getField('💰')}</Text> : null}
@@ -196,7 +194,7 @@ export const ChatBubble: React.FC<Props> = ({
         {searchResults && searchResults.length > 0 ? <SearchResultCard results={searchResults} /> : null}
         {intro ? <Text style={styles.assistantText}>{intro}</Text> : null}
         {restaurants.map((r, i) => (
-          <RestaurantCard key={i} text={r} onPress={onRestaurantPress} styles={styles} />
+          <RestaurantCard key={`${r.shopId ?? r.name}-${i}`} restaurant={r} onPress={onRestaurantPress} styles={styles} />
         ))}
         {!intro && restaurants.length === 0 && content ? (
           <Text style={styles.assistantText}>{content}</Text>

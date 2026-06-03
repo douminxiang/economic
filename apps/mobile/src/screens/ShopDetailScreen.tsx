@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, BackHandler } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { MapView, Marker } from 'react-native-amap3d';
 import { useShopDetail, useCart } from '../hooks';
 import { useCartStore } from '../stores/cartStore';
@@ -69,7 +70,28 @@ export default function ShopDetailScreen({ navigation, route }: any) {
   const cartItemCount = useCartStore((s) => s.itemCount);
   const [activeTab, setActiveTab] = useState<'menu' | 'reviews' | 'info'>('menu');
   const [error, setError] = useState<string | null>(null);
+  const [mapMounted, setMapMounted] = useState(false);
+  const isFocused = useIsFocused();
   const shop = data?.data;
+
+  const handleBack = useCallback(() => {
+    setMapMounted(false);
+    requestAnimationFrame(() => navigation.goBack());
+  }, [navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setMapMounted(true);
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleBack();
+        return true;
+      });
+      return () => {
+        setMapMounted(false);
+        sub.remove();
+      };
+    }, [handleBack]),
+  );
 
   const ShopDetailSkeleton = () => (
     <View style={styles.container}>
@@ -121,7 +143,7 @@ export default function ShopDetailScreen({ navigation, route }: any) {
         }
       >
         <View style={styles.headerImage}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
             <Text style={styles.backText}>←</Text>
           </TouchableOpacity>
           <Text style={styles.headerPlaceholder}>{t('shop.shopImage')}</Text>
@@ -160,6 +182,7 @@ export default function ShopDetailScreen({ navigation, route }: any) {
                 <Text style={styles.routeButtonText}>{t('shop.viewRoute')}</Text>
               </TouchableOpacity>
             </View>
+            {isFocused && mapMounted && activeTab === 'menu' && (
             <MapView
               key={`shop-${shop.id}`}
               style={styles.map}
@@ -172,6 +195,7 @@ export default function ShopDetailScreen({ navigation, route }: any) {
                 position={{ latitude: Number(shop.latitude), longitude: Number(shop.longitude) }}
               />
             </MapView>
+            )}
             <View style={styles.mapAddress}>
               <Text style={styles.mapAddressIcon}>📍</Text>
               <Text style={styles.mapAddressText}>{shop.address}</Text>

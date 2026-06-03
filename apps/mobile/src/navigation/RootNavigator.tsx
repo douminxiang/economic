@@ -1,12 +1,16 @@
-import React, { useCallback, useEffect, useRef } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { AuthStack } from './AuthStack';
 import { MainTabs } from './MainTabs';
 import { useAuth } from '../hooks/useAuth';
 import { Loading } from '../components/Loading';
+import { Screen } from '../components/Screen';
 import { disconnectSocket, connectSocket } from '../services/socket';
 import { trackPageView } from '../utils/tracker';
 import { getActiveRoute, navigationRef } from './navigationRef';
+import { useTheme } from '../theme/ThemeContext';
+import { colors as tokenColors } from '../theme/tokens';
 
 function routeTrackingKey(route: ReturnType<typeof getActiveRoute>): string | undefined {
   if (!route) return undefined;
@@ -15,7 +19,24 @@ function routeTrackingKey(route: ReturnType<typeof getActiveRoute>): string | un
 
 export const RootNavigator = () => {
   const { isAuthenticated, isLoading } = useAuth();
+  const { colors } = useTheme();
   const lastTrackedKeyRef = useRef<string | undefined>(undefined);
+
+  const navTheme = useMemo(
+    () => ({
+      ...DefaultTheme,
+      colors: {
+        ...DefaultTheme.colors,
+        primary: colors.primary,
+        background: colors.background,
+        card: colors.surface,
+        text: colors.text,
+        border: colors.border,
+        notification: colors.primary,
+      },
+    }),
+    [colors],
+  );
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -47,12 +68,22 @@ export const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer
-      ref={navigationRef}
-      onReady={reportScreen}
-      onStateChange={reportScreen}
-    >
-      {isAuthenticated ? <MainTabs /> : <AuthStack />}
-    </NavigationContainer>
+    <Screen style={styles.root}>
+      <NavigationContainer
+        ref={navigationRef}
+        theme={navTheme}
+        onReady={reportScreen}
+        onStateChange={reportScreen}
+      >
+        <View style={styles.navRoot}>
+          {isAuthenticated ? <MainTabs /> : <AuthStack />}
+        </View>
+      </NavigationContainer>
+    </Screen>
   );
 };
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: tokenColors.background },
+  navRoot: { flex: 1 },
+});

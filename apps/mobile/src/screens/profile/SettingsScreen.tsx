@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Switch,
   Alert,
 } from 'react-native';
@@ -76,7 +75,7 @@ export default function SettingsScreen({ navigation }: any) {
   });
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.back}>←</Text>
@@ -122,6 +121,6 @@ export default function SettingsScreen({ navigation }: any) {
           </TouchableOpacity>
         </Card>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

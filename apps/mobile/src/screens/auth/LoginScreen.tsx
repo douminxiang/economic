@@ -9,7 +9,6 @@ import {
   Platform,
   TouchableOpacity,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -39,7 +38,6 @@ interface LoginScreenProps {
 export default function LoginScreen({ navigation }: LoginScreenProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
   const { login, smsLogin, sendCode, isLoading } = useAuth();
   const [mode, setMode] = useState<'password' | 'sms'>('password');
   const [countdown, setCountdown] = useState(0);
@@ -128,7 +126,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     >
       {mockCodeMessage !== null && (
         <View
-          style={[styles.messageToast, { top: insets.top + spacing.sm }]}
+          style={[styles.messageToast, { top: spacing.sm }]}
           pointerEvents="none"
         >
           <Text style={styles.messageToastText}>

@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  SafeAreaView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -185,7 +184,7 @@ export default function OrderScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.title}>{t('order.title')}</Text>
         <View style={styles.tabRow}>
@@ -221,6 +220,6 @@ export default function OrderScreen({ navigation }: any) {
           }
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }

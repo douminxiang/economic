@@ -323,6 +323,8 @@ export default {
     nearbyShops: '附近好店',
     errorMessage: '抱歉，出了点问题：',
     viewDetails: '查看详情 ›',
+    shopNotFound: '未找到「{{name}}」对应的店铺',
+    shopNavigateFailed: '跳转店铺失败，请稍后重试',
     inputPlaceholder: '想吃什么？告诉我...',
     uploadProgress: '上传中... {{percent}}%',
     imageDefaultMessage: '请看看这张图片',

@@ -154,8 +154,8 @@ export default function PaymentScreen({ navigation, route }: any) {
           margin: spacing.md,
           borderRadius: borderRadius.lg,
           alignItems: 'center',
-          paddingTop: 60,
-          marginTop: 40,
+          paddingTop: spacing.xl,
+          marginTop: spacing.lg,
           ...shadows.md,
         },
         successIcon: {

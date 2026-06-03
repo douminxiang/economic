@@ -323,6 +323,8 @@ export default {
     nearbyShops: 'Nearby',
     errorMessage: 'Sorry, something went wrong: ',
     viewDetails: 'View Details ›',
+    shopNotFound: 'No shop found for "{{name}}"',
+    shopNavigateFailed: 'Could not open shop, please try again',
     inputPlaceholder: 'What do you want to eat?...',
     uploadProgress: 'Uploading... {{percent}}%',
     imageDefaultMessage: 'What do you think of this photo?',

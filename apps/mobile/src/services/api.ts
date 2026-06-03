@@ -287,6 +287,15 @@ export const paymentApi = {
 };
 
 // SSE Stream Helper — uses XMLHttpRequest for SSE streaming (most reliable in React Native)
+let activeChatXhr: XMLHttpRequest | null = null;
+let activeChatAborted = false;
+
+export function abortActiveChatStream() {
+  activeChatAborted = true;
+  activeChatXhr?.abort();
+  activeChatXhr = null;
+}
+
 export const createChatStream = async (
   message: string,
   conversationId: number | undefined,
@@ -302,7 +311,11 @@ export const createChatStream = async (
   const token = getStorage().getString('accessToken');
 
   return new Promise<void>((resolve) => {
+    abortActiveChatStream();
+    activeChatAborted = false;
+
     const xhr = new XMLHttpRequest();
+    activeChatXhr = xhr;
     const url = `${API_BASE_URL}/ai/chat`;
     xhr.open('POST', url, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
@@ -318,7 +331,17 @@ export const createChatStream = async (
     const finish = () => {
       if (finished) return;
       finished = true;
+      if (activeChatXhr === xhr) activeChatXhr = null;
       resolve();
+    };
+
+    const fail = (error: string) => {
+      if (activeChatAborted) {
+        finish();
+        return;
+      }
+      onError(error);
+      finish();
     };
 
     const handleEvent = (data: any) => {
@@ -339,8 +362,7 @@ export const createChatStream = async (
         onDone(data.conversationId ?? lastConversationId);
         finish();
       } else if (data.error) {
-        onError(data.error);
-        finish();
+        fail(data.error);
       }
     };
 
@@ -382,9 +404,13 @@ export const createChatStream = async (
       if (finished) return;
       readNewContent();
 
+      if (xhr.status === 0) {
+        fail('无法连接服务器，请确认后端已启动并执行 adb reverse tcp:3000 tcp:3000');
+        return;
+      }
+
       if (xhr.status === 401) {
-        onError('登录已过期，请重新登录');
-        finish();
+        fail('登录已过期，请重新登录');
         return;
       }
 
@@ -396,8 +422,7 @@ export const createChatStream = async (
         } catch {
           // response may be SSE text, not JSON
         }
-        onError(errorMsg);
-        finish();
+        fail(errorMsg);
         return;
       }
 
@@ -405,7 +430,7 @@ export const createChatStream = async (
         if (receivedChunks || lastConversationId) {
           onDone(lastConversationId);
         } else {
-          onError('AI 服务暂时不可用');
+          fail('AI 服务暂时不可用');
         }
         finish();
       }
@@ -413,15 +438,13 @@ export const createChatStream = async (
 
     xhr.onerror = () => {
       if (!finished) {
-        onError('网络连接失败');
-        finish();
+        fail('无法连接服务器，请确认后端已启动并执行 adb reverse tcp:3000 tcp:3000');
       }
     };
 
     xhr.ontimeout = () => {
       if (!finished) {
-        onError('请求超时，请重试');
-        finish();
+        fail('请求超时，请重试');
       }
     };
 

@@ -1,0 +1,80 @@
+version: "3.8"
+
+services:
+  # ===== NestJS 后端服务 =====
+  server:
+    build:
+      context: ..
+      dockerfile: apps/server/Dockerfile
+    container_name: economic-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - apps/server/.env.production
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=mysql://root:${DB_PASSWORD}@db:3306/economic?connection_limit=50
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - economic-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ===== MariaDB 数据库 =====
+  db:
+    image: mariadb:11.4
+    container_name: economic-db
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    env_file:
+      - apps/server/.env.production
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
+      MARIADB_DATABASE: economic
+    volumes:
+      - db-data:/var/lib/mysql
+      # 初始化 SQL（可选，用于初始化数据库）
+      # - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - economic-net
+    healthcheck:
+      test: ["CMD", "healthcheck", "--connect", "--innodb_initialize=1", "--sst_user=root", "--sst_pass=${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===== Nginx 反向代理（可选，用于 HTTPS / 域名）=====
+  nginx:
+    image: nginx:alpine
+    container_name: economic-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - server
+    networks:
+      - economic-net
+    profiles:
+      - with-nginx
+
+networks:
+  economic-net:
+    driver: bridge
+
+volumes:
+  db-data:
+    driver: local

@@ -235,7 +235,7 @@ export class AiService {
         .join('、') || '暂无菜品信息';
 
       return [
-        `- ${shop.name}`,
+        `- [id:${shop.id}] ${shop.name}`,
         `  地址：${shop.address}`,
         `  分类：${shop.category?.name || '未分类'}`,
         `  评分：${Number(shop.rating)}`,
@@ -277,14 +277,17 @@ export class AiService {
 - 识别用户上传的美食图片并给出推荐
 
 ## 推荐格式
-当你推荐餐厅时，请用以下结构化格式（每家餐厅用 🍽️ 开头）：
+当你推荐餐厅时，请用以下结构化格式（每家餐厅用 🍽️ 开头，必须包含 shopId 且名称与数据库一致）：
 
 🍽️ **餐厅名称**
+shopId: 123
 📍 地址：xxx
 💰 人均：xx元
 ⭐ 评分：x.x
 🔥 招牌菜：xxx、xxx
 💬 推荐理由：xxx
+
+shopId 必须来自上文商家数据中的 [id:数字]，不可编造。
 
 ## 回复规则
 1. 优先推荐数据库中的真实商家，不要编造不存在的餐厅

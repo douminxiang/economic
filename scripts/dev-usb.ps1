@@ -19,7 +19,7 @@ if (-not $lines) {
 
 $real = $lines | Where-Object { $_ -notmatch 'emulator-' }
 if ($real) {
-  $serial = ($real[0] -split '\t')[0]
+  $serial = (@($real)[0] -split '\t')[0]
   Write-Host "[OK] Real device: $serial" -ForegroundColor Green
   & adb -s $serial reverse tcp:3000 tcp:3000
   & adb -s $serial reverse tcp:8081 tcp:8081
@@ -31,7 +31,19 @@ if ($real) {
 
 Write-Host "[OK] adb reverse: 3000 (API) + 8081 (Metro)" -ForegroundColor Green
 & adb reverse --list
+
+try {
+  $metro = Invoke-WebRequest -Uri "http://127.0.0.1:8081/status" -UseBasicParsing -TimeoutSec 3
+  if ($metro.Content -match 'running') {
+    Write-Host "[OK] Metro is running on :8081" -ForegroundColor Green
+  }
+} catch {
+  Write-Host "[WARN] Metro is NOT running! Start it first:" -ForegroundColor Yellow
+  Write-Host "  cd apps/mobile && pnpm start" -ForegroundColor Yellow
+  Write-Host "  (Without Metro you will see 'Unable to load script' red screen)" -ForegroundColor Yellow
+}
+
 Write-Host ""
 Write-Host "App config: DEV_CONNECT_MODE = 'usb' -> http://127.0.0.1:3000" -ForegroundColor Cyan
-Write-Host "Next: pnpm dev:server | pnpm start (mobile) | pnpm android" -ForegroundColor Cyan
+Write-Host "Next: pnpm dev:all  (backend + Metro + adb + launch app)" -ForegroundColor Cyan
 Write-Host ""
