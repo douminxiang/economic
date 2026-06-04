@@ -33,10 +33,22 @@ export class OrderService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
-    const inProgress = await this.prisma.order.findMany({
-      where: { status: { in: [1, 2, 3] } },
-      select: { id: true, userId: true, status: true, payTime: true, updatedAt: true },
-    });
+    let inProgress: Array<{
+      id: number;
+      userId: number;
+      status: number;
+      payTime: Date | null;
+      updatedAt: Date;
+    }>;
+    try {
+      inProgress = await this.prisma.order.findMany({
+        where: { status: { in: [1, 2, 3] } },
+        select: { id: true, userId: true, status: true, payTime: true, updatedAt: true },
+      });
+    } catch (err) {
+      this.logger.warn(`Skip order resume on bootstrap: ${(err as Error).message}`);
+      return;
+    }
 
     for (const order of inProgress) {
       if (order.status === 3) {
