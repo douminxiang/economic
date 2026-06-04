@@ -121,7 +121,7 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=8192
         run: |
-          test -x node_modules/react-native/sdks/hermesc/linux64-bin/hermesc
+          chmod +x node_modules/hermes-compiler/hermesc/linux64-bin/hermesc
           chmod +x apps/mobile/android/gradlew
           cd apps/mobile/android && ./gradlew bundleRelease --no-daemon
 
