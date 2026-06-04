@@ -1,0 +1,53 @@
+version: "3.8"
+
+services:
+  server:
+    image: ${IMAGE:-dmxyoujun/economic-server:latest}
+    container_name: economic-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - /opt/economic/.env.production
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - economic-net
+    entrypoint:
+      - sh
+      - -c
+      - |
+        prisma generate --schema=./prisma/schema.prisma
+        prisma migrate deploy --schema=./prisma/schema.prisma
+        exec node dist/src/main
+
+  db:
+    image: mysql:8.0
+    container_name: economic-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: economic
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - economic-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  economic-net:
+    name: economic_default
+    driver: bridge
+
+volumes:
+  db-data:
+    driver: local

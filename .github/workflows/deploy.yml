@@ -77,6 +77,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-push
     steps:
+      - uses: actions/checkout@v4
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -86,17 +88,24 @@ jobs:
       - name: Pull and save images
         run: |
           docker pull ${{ env.IMAGE_NAME }}:latest
-          docker pull mariadb:11.4
-          docker save ${{ env.IMAGE_NAME }}:latest mariadb:11.4 -o "${{ github.workspace }}/images.tar"
+          docker save ${{ env.IMAGE_NAME }}:latest -o "${{ github.workspace }}/images.tar"
+          sudo chmod a+r "${{ github.workspace }}/images.tar"
+          ls -la "${{ github.workspace }}/images.tar"
 
-      - name: Copy images to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: images.tar
-          target: /opt/economic/
+      - name: Copy files to server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USERNAME }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "${{ github.workspace }}/images.tar" \
+            "${{ github.workspace }}/scripts/server-docker-compose.yml" \
+            "$SSH_USER@$SSH_HOST:/opt/economic/"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -111,6 +120,7 @@ jobs:
           script: |
             set -e
             cd /opt/economic
+            mv -f server-docker-compose.yml docker-compose.yml
 
             echo "===== Load images ====="
             docker load -i images.tar
@@ -118,10 +128,10 @@ jobs:
 
             echo "===== Deploy stack ====="
             export IMAGE DB_PASSWORD
-            docker compose -f docker-compose.yml up -d db
-            docker compose -f docker-compose.yml up -d server
+            export DATABASE_URL="mysql://root:$(python3 -c 'import urllib.parse,os; print(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""))')@db:3306/economic"
+            docker compose up -d server
 
             docker image prune -f
             sleep 30
             curl -fsS http://127.0.0.1:3000/health
-            docker compose -f docker-compose.yml ps
+            docker compose ps
