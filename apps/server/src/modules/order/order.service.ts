@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger, OnApplicationBootstrap, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentService } from '../payment/payment.service';
 import { EventsGateway } from '../events/events.gateway';
@@ -13,7 +13,7 @@ const STATUS_TEXT: Record<number, string> = {
 };
 
 @Injectable()
-export class OrderService implements OnModuleInit {
+export class OrderService implements OnApplicationBootstrap {
   private readonly logger = new Logger(OrderService.name);
   private riderLocationIntervals = new Map<number, ReturnType<typeof setInterval>>();
   private autoAdvanceTimers = new Map<number, ReturnType<typeof setTimeout>[]>();
@@ -32,7 +32,7 @@ export class OrderService implements OnModuleInit {
     return `${date}${rand}`;
   }
 
-  async onModuleInit() {
+  async onApplicationBootstrap() {
     const inProgress = await this.prisma.order.findMany({
       where: { status: { in: [1, 2, 3] } },
       select: { id: true, userId: true, status: true, payTime: true, updatedAt: true },

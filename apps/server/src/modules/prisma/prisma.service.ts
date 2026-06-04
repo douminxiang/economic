@@ -16,8 +16,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       host: url.hostname,
       port: parseInt(url.port || '3306'),
       user: url.username,
-      password: url.password,
-      database: url.pathname.replace('/', ''),
+      password: decodeURIComponent(url.password),
+      database: url.pathname.replace(/^\//, ''),
+      connectionLimit: 10,
       // Every pooled connection uses Beijing time for NOW() / CURRENT_TIMESTAMP.
       initSql: `SET time_zone = '${DB_TIMEZONE}'`,
       timezone: DB_TIMEZONE,

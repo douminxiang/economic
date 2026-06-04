@@ -16,7 +16,7 @@ services:
       - /opt/economic/.env.production
     environment:
       NODE_ENV: production
-      DATABASE_URL: mysql://root:${DB_PASSWORD}@db:3306/economic?connection_limit=50
+      DATABASE_URL: mysql://root:${DB_PASSWORD}@db:3306/economic
     depends_on:
       db:
         condition: service_healthy
