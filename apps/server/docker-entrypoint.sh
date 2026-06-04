@@ -7,4 +7,4 @@ if [ -n "$DATABASE_URL" ]; then
 fi
 
 echo "[entrypoint] Starting NestJS..."
-exec node dist/main
+exec node dist/src/main

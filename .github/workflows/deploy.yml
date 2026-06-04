@@ -87,7 +87,7 @@ jobs:
         run: |
           docker pull ${{ env.IMAGE_NAME }}:latest
           docker pull mariadb:11.4
-          docker save ${{ env.IMAGE_NAME }}:latest mariadb:11.4 -o /tmp/images.tar
+          docker save ${{ env.IMAGE_NAME }}:latest mariadb:11.4 -o "${{ github.workspace }}/images.tar"
 
       - name: Copy images to server
         uses: appleboy/scp-action@v0.1.7
@@ -95,7 +95,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: /tmp/images.tar
+          source: images.tar
           target: /opt/economic/
 
       - name: Deploy via SSH
@@ -118,10 +118,10 @@ jobs:
 
             echo "===== Deploy stack ====="
             export IMAGE DB_PASSWORD
-            docker compose -f docker-compose.prod.yml up -d db
-            docker compose -f docker-compose.prod.yml up -d server
+            docker compose -f docker-compose.yml up -d db
+            docker compose -f docker-compose.yml up -d server
 
             docker image prune -f
-            sleep 5
+            sleep 30
             curl -fsS http://127.0.0.1:3000/health
-            docker compose -f docker-compose.prod.yml ps
+            docker compose -f docker-compose.yml ps
