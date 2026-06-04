@@ -105,16 +105,43 @@ jobs:
       - name: Install dependencies (pnpm)
         run: pnpm install --frozen-lockfile
 
-      - name: Decode keystore
+      - name: Prepare release keystore
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > apps/mobile/android/app/release.keystore
-          cat > apps/mobile/android/keystore.properties << EOF
-          storeFile=release.keystore
-          storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          EOF
+          set -euo pipefail
+          KS="apps/mobile/android/app/release.keystore"
+          PROPS="apps/mobile/android/keystore.properties"
+          rm -f "$KS" "$PROPS"
+
+          if [ -z "${KEYSTORE_B64}" ]; then
+            echo "::warning::ANDROID_KEYSTORE_BASE64 is not set — bundleRelease will use debug.keystore"
+            exit 0
+          fi
+
+          echo "$KEYSTORE_B64" | tr -d '\n\r ' | base64 -d > "$KS"
+          if [ ! -s "$KS" ]; then
+            echo "::error::Decoded keystore is empty. Re-encode with: base64 -w0 your-release.keystore"
+            exit 1
+          fi
+
+          if ! keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null 2>&1; then
+            echo "::error::Keystore validation failed. Check ANDROID_KEYSTORE_BASE64 (JKS or PKCS12), STORE_PASSWORD, and KEY_ALIAS."
+            keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" 2>&1 | head -20 || true
+            exit 1
+          fi
+
+          {
+            echo "storeFile=release.keystore"
+            echo "storePassword=${STORE_PASSWORD}"
+            echo "keyAlias=${KEY_ALIAS}"
+            echo "keyPassword=${KEY_PASSWORD}"
+          } > "$PROPS"
+          echo "Release keystore configured for alias: ${KEY_ALIAS}"
 
       - name: Build AAB
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
