@@ -48,7 +48,11 @@ export class AuthService {
   }
 
   private get refreshExpiresIn() {
-    return this.configService.get('JWT_REFRESH_EXPIRES_IN', '7d');
+    return this.configService.get('JWT_REFRESH_EXPIRES_IN', '30d');
+  }
+
+  private get accessExpiresIn() {
+    return this.configService.get('JWT_EXPIRES_IN', '7d');
   }
 
   private isSingleSessionMode() {
@@ -115,7 +119,7 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(
       { sub: payload.sub, phone: payload.phone, sid: payload.sid },
-      { expiresIn: this.configService.get('JWT_EXPIRES_IN', '15m') },
+      { expiresIn: this.accessExpiresIn },
     );
     const newRefreshToken = this.jwtService.sign(
       { sub: payload.sub, phone: payload.phone, sid: payload.sid },
@@ -176,7 +180,7 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(
       { sub: userId, phone, sid: sessionId },
-      { expiresIn: this.configService.get('JWT_EXPIRES_IN', '15m') },
+      { expiresIn: this.accessExpiresIn },
     );
 
     return { accessToken, refreshToken, sessionId };

@@ -308,9 +308,8 @@ export const createChatStream = async (
   imageUrl?: string,
   webSearch?: boolean,
 ) => {
-  const token = getStorage().getString('accessToken');
-
-  return new Promise<void>((resolve) => {
+  const runStream = (accessToken: string | undefined, allowRefreshRetry: boolean) =>
+    new Promise<void>((resolve) => {
     abortActiveChatStream();
     activeChatAborted = false;
 
@@ -319,7 +318,7 @@ export const createChatStream = async (
     const url = `${API_BASE_URL}/ai/chat`;
     xhr.open('POST', url, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    if (accessToken) xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
     xhr.timeout = 120000;
 
     let buffer = '';
@@ -410,6 +409,18 @@ export const createChatStream = async (
       }
 
       if (xhr.status === 401) {
+        if (allowRefreshRetry) {
+          refreshAccessToken()
+            .then((newToken) => {
+              if (newToken) {
+                runStream(newToken, false).then(resolve);
+              } else {
+                fail('登录已过期，请重新登录');
+              }
+            })
+            .catch(() => fail('登录已过期，请重新登录'));
+          return;
+        }
         fail('登录已过期，请重新登录');
         return;
       }
@@ -450,4 +461,7 @@ export const createChatStream = async (
 
     xhr.send(JSON.stringify({ message, conversationId, thinkingEnabled, imageUrl, webSearch }));
   });
+
+  const token = getStorage().getString('accessToken');
+  return runStream(token, true);
 };
