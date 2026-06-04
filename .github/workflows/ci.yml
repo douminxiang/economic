@@ -118,16 +118,19 @@ jobs:
 
       - name: Build AAB
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
         run: |
+          test -x node_modules/react-native/sdks/hermesc/linux64-bin/hermesc
           chmod +x apps/mobile/android/gradlew
-          cd apps/mobile/android && ./gradlew assembleRelease
+          cd apps/mobile/android && ./gradlew bundleRelease --no-daemon
 
       - name: Upload AAB artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          path: apps/mobile/android/app/build/outputs/bundle/release/*.aab
           retention-days: 30
 
       - name: Clean up keystore

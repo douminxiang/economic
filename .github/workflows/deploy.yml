@@ -85,53 +85,42 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Pull and save images
-        run: |
-          docker pull ${{ env.IMAGE_NAME }}:latest
-          docker save ${{ env.IMAGE_NAME }}:latest -o "${{ github.workspace }}/images.tar"
-          sudo chmod a+r "${{ github.workspace }}/images.tar"
-          ls -la "${{ github.workspace }}/images.tar"
+      - name: Pull image
+        run: docker pull ${{ env.IMAGE_NAME }}:latest
 
-      - name: Copy files to server
+      - name: Deploy to server
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USERNAME }}
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          IMAGE: ${{ env.IMAGE_NAME }}:latest
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
+          set -euo pipefail
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            "${{ github.workspace }}/images.tar" \
+
+          SSH_OPTS="-i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes"
+          TARGET="$SSH_USER@$SSH_HOST"
+
+          scp $SSH_OPTS \
             "${{ github.workspace }}/scripts/server-docker-compose.yml" \
-            "$SSH_USER@$SSH_HOST:/opt/economic/"
+            "$TARGET:/opt/economic/server-docker-compose.yml"
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        env:
-          IMAGE: ${{ env.IMAGE_NAME }}:latest
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: IMAGE,DB_PASSWORD
-          script: |
-            set -e
-            cd /opt/economic
-            mv -f server-docker-compose.yml docker-compose.yml
+          docker save "$IMAGE" | ssh $SSH_OPTS "$TARGET" "docker load"
 
-            echo "===== Load images ====="
-            docker load -i images.tar
-            rm -f images.tar
-
-            echo "===== Deploy stack ====="
-            export IMAGE DB_PASSWORD
-            export DATABASE_URL="mysql://root:$(python3 -c 'import urllib.parse,os; print(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""))')@db:3306/economic"
-            docker compose up -d server
-
-            docker image prune -f
-            sleep 30
-            curl -fsS http://127.0.0.1:3000/health
-            docker compose ps
+          ssh $SSH_OPTS "$TARGET" \
+            "IMAGE='$IMAGE' DB_PASSWORD='$DB_PASSWORD' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/economic
+          mv -f server-docker-compose.yml docker-compose.yml
+          export IMAGE DB_PASSWORD
+          export DATABASE_URL="mysql://root:$(python3 -c 'import urllib.parse,os; print(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""))')@db:3306/economic"
+          docker compose up -d server
+          docker image prune -f
+          sleep 30
+          curl -fsS http://127.0.0.1:3000/health
+          docker compose ps
+          REMOTE
